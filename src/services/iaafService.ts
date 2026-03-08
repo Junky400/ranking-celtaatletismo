@@ -182,6 +182,48 @@ export function isEstadilloEvent(eventName: string, gender: Gender): boolean {
     if (upperE === "4X100M") return upper.includes("4X100");
     if (upperE === "4X400M") return upper.includes("4X400");
     
+    // Throwing events weight check
+    const isThrow = ["PESO", "DISCO", "MARTILLO", "JABALINA"].includes(upperE);
+    if (isThrow) {
+      if (!upper.includes(upperE)) return false;
+      
+      // Normalize for weight checks (remove spaces and commas)
+      const normalized = upper.replace(/\s+/g, "").replace(",", ".");
+      
+      // If it contains a weight specification, it MUST be the absolute one
+      // If it doesn't contain a weight, we assume it's absolute (standard ranking format)
+      if (gender === Gender.FEMALE) {
+        if (upperE === "PESO" || upperE === "MARTILLO") {
+          // Absolute is 4kg. Reject if it mentions 3kg, 2kg, etc.
+          if (normalized.includes("3K") || normalized.includes("2K") || (normalized.includes("KG") && !normalized.includes("4K"))) return false;
+        }
+        if (upperE === "DISCO") {
+          // Absolute is 1kg. Reject if it mentions 0.8kg, etc.
+          if (normalized.includes("0.8") || normalized.includes("800") || (normalized.includes("KG") && !normalized.includes("1K"))) return false;
+        }
+        if (upperE === "JABALINA") {
+          // Absolute is 600g. Reject if it mentions 500g, 400g, etc.
+          if (normalized.includes("500") || normalized.includes("400") || (normalized.includes("G") && !normalized.includes("600"))) return false;
+        }
+      } else {
+        // Male
+        if (upperE === "PESO" || upperE === "MARTILLO") {
+          // Absolute is 7.26kg (often labeled 7kg or 7,26kg)
+          // Reject if it mentions 6kg, 5kg, 4kg, 3kg
+          if (normalized.includes("6K") || normalized.includes("5K") || normalized.includes("4K") || normalized.includes("3K")) return false;
+        }
+        if (upperE === "DISCO") {
+          // Absolute is 2kg. Reject if it mentions 1.75, 1.5, 1kg
+          if (normalized.includes("1.7") || normalized.includes("1.5") || (normalized.includes("1K") && !normalized.includes("2K"))) return false;
+        }
+        if (upperE === "JABALINA") {
+          // Absolute is 800g. Reject if it mentions 700g, 600g
+          if (normalized.includes("700") || normalized.includes("600") || (normalized.includes("G") && !normalized.includes("800"))) return false;
+        }
+      }
+      return true;
+    }
+
     // For individual track events, ensure it's not a relay or hurdles
     const individualTrackEvents = ["100M", "200M", "400M", "800M", "1500M", "3000M", "5000M"];
     if (individualTrackEvents.includes(upperE)) {
