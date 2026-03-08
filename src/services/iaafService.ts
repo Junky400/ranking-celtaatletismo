@@ -35,6 +35,8 @@ const MALE_COEFFICIENTS: Record<string, IAAFParams & { isField: boolean }> = {
   "MARTILLO": { a: 13.04, b: 7.0, c: 1.05, isField: true },
   "JABALINA": { a: 10.14, b: 7.0, c: 1.08, isField: true },
   "5000M MARCHA": { a: 0.0004, b: 2800.0, c: 2.0, isField: false },
+  "4X100M": { a: 0.07811, b: 96.0, c: 1.81, isField: false },
+  "4X400M": { a: 0.00499, b: 440.0, c: 1.81, isField: false },
 };
 
 const FEMALE_COEFFICIENTS: Record<string, IAAFParams & { isField: boolean }> = {
@@ -57,36 +59,50 @@ const FEMALE_COEFFICIENTS: Record<string, IAAFParams & { isField: boolean }> = {
   "MARTILLO": { a: 12.33, b: 3.0, c: 1.1, isField: true },
   "JABALINA": { a: 12.33, b: 3.0, c: 1.1, isField: true },
   "5000M MARCHA": { a: 0.00035, b: 3100.0, c: 2.0, isField: false },
+  "4X100M": { a: 0.06506, b: 107.0, c: 1.81, isField: false },
+  "4X400M": { a: 0.00398, b: 500.0, c: 1.81, isField: false },
 };
 
 export function getCanonicalEventName(eventName: string): string {
-  const upperEvent = eventName.toUpperCase();
+  const upper = eventName.toUpperCase();
+  // Remove dots/spaces only inside numbers (1.500 -> 1500) or between number and M (100 M -> 100M)
+  const normalized = upper.replace(/(\d)[\s\.]+(\d)/g, "$1$2").replace(/(\d)[\s\.]+(M)/g, "$1$2");
   
-  if (upperEvent.includes("4X100")) return "4X100M";
-  if (upperEvent.includes("4X400")) return "4X400M";
-  if (upperEvent.includes("100M") && (upperEvent.includes("VALLAS") || upperEvent.includes("V."))) return "100MV";
-  if (upperEvent.includes("110M") && (upperEvent.includes("VALLAS") || upperEvent.includes("V."))) return "110MV";
-  if (upperEvent.includes("400M") && (upperEvent.includes("VALLAS") || upperEvent.includes("V."))) return "400MV";
-  if (upperEvent.includes("3000M") && (upperEvent.includes("OBST") || upperEvent.includes("OBS."))) return "3000M OBS";
-  if (upperEvent.includes("5000M") && upperEvent.includes("MARCHA")) return "5000M MARCHA";
-  if (upperEvent.includes("4X")) return upperEvent; // Don't canonicalize other relays to individual events
-  if (upperEvent.includes("100M")) return "100M";
-  if (upperEvent.includes("200M")) return "200M";
-  if (upperEvent.includes("400M")) return "400M";
-  if (upperEvent.includes("800M")) return "800M";
-  if (upperEvent.includes("1500M")) return "1500M";
-  if (upperEvent.includes("3000M")) return "3000M";
-  if (upperEvent.includes("5000M")) return "5000M";
-  if (upperEvent.includes("ALTURA")) return "ALTURA";
-  if (upperEvent.includes("PÉRTIGA") || upperEvent.includes("PERTIGA")) return "PÉRTIGA";
-  if (upperEvent.includes("LONXITUDE") || upperEvent.includes("LONGITUD")) return "LONGITUD";
-  if (upperEvent.includes("TRIPLE")) return "TRIPLE";
-  if (upperEvent.includes("PESO")) return "PESO";
-  if (upperEvent.includes("DISCO")) return "DISCO";
-  if (upperEvent.includes("MARTELO") || upperEvent.includes("MARTILLO")) return "MARTILLO";
-  if (upperEvent.includes("XABALINA") || upperEvent.includes("JABALINA")) return "JABALINA";
+  if (normalized.includes("4X100")) return "4X100M";
+  if (normalized.includes("4X400")) return "4X400M";
+  if (normalized.includes("100M") && (normalized.includes("VALLAS") || normalized.includes("V."))) return "100MV";
+  if (normalized.includes("110M") && (normalized.includes("VALLAS") || normalized.includes("V."))) return "110MV";
+  if (normalized.includes("400M") && (normalized.includes("VALLAS") || normalized.includes("V."))) return "400MV";
+  if (normalized.includes("3000M") && (normalized.includes("OBST") || normalized.includes("OBS."))) return "3000M OBS";
+  if (normalized.includes("5000M") && normalized.includes("MARCHA")) return "5000M MARCHA";
   
-  return upperEvent;
+  if (normalized.includes("4X")) return upper; 
+  
+  const hasHurdles = normalized.includes("VALLAS") || normalized.includes("V.");
+  const hasRelay = normalized.includes("4X");
+  const hasObstacles = normalized.includes("OBST") || normalized.includes("OBS.");
+  const hasMarcha = normalized.includes("MARCHA");
+
+  if (!hasHurdles && !hasRelay && !hasObstacles && !hasMarcha) {
+    if (/\b100\b|100M/.test(normalized) && !/\b110\b|110M/.test(normalized)) return "100M";
+    if (/\b200\b|200M/.test(normalized)) return "200M";
+    if (/\b400\b|400M/.test(normalized)) return "400M";
+    if (/\b800\b|800M/.test(normalized)) return "800M";
+    if (/\b1500\b|1500M/.test(normalized)) return "1500M";
+    if (/\b3000\b|3000M/.test(normalized)) return "3000M";
+    if (/\b5000\b|5000M/.test(normalized)) return "5000M";
+  }
+  
+  if (normalized.includes("ALTURA")) return "ALTURA";
+  if (normalized.includes("PÉRTIGA") || normalized.includes("PERTIGA")) return "PÉRTIGA";
+  if (normalized.includes("LONXITUDE") || normalized.includes("LONGITUD")) return "LONGITUD";
+  if (normalized.includes("TRIPLE")) return "TRIPLE";
+  if (normalized.includes("PESO")) return "PESO";
+  if (normalized.includes("DISCO")) return "DISCO";
+  if (normalized.includes("MARTELO") || normalized.includes("MARTILLO")) return "MARTILLO";
+  if (normalized.includes("XABALINA") || normalized.includes("JABALINA")) return "JABALINA";
+  
+  return upper;
 }
 
 export function calculateIAAFPoints(eventName: string, mark: string, selectedGender: Gender): number {
@@ -157,13 +173,14 @@ export const FEMALE_ESTADILLO_EVENTS = [
 
 export function getGenderFromEventName(eventName: string): Gender | null {
   const upper = eventName.toUpperCase();
-  if (upper.includes("MASCULINO") || upper.includes("MASC.") || upper.includes(" HOMES")) return Gender.MALE;
-  if (upper.includes("FEMININO") || upper.includes("FEM.") || upper.includes(" MULLERES")) return Gender.FEMALE;
+  if (upper.includes("MASCULINO") || upper.includes("MASC.") || upper.includes(" HOMES") || upper.includes("HOMBRES")) return Gender.MALE;
+  if (upper.includes("FEMININO") || upper.includes("FEM.") || upper.includes(" MULLERES") || upper.includes("MUJERES")) return Gender.FEMALE;
   return null;
 }
 
 export function isEstadilloEvent(eventName: string, gender: Gender): boolean {
   const upper = eventName.toUpperCase();
+  const normalized = upper.replace(/(\d)[\s\.]+(\d)/g, "$1$2").replace(/(\d)[\s\.]+(M)/g, "$1$2");
   const eventGender = getGenderFromEventName(eventName);
   
   if (gender === Gender.MALE && eventGender === Gender.FEMALE) return false;
@@ -174,51 +191,51 @@ export function isEstadilloEvent(eventName: string, gender: Gender): boolean {
     const upperE = e.toUpperCase();
     
     // Special handling for events that can be confused
-    if (upperE === "100MV") return upper.includes("100M") && (upper.includes("VALLAS") || upper.includes("V."));
-    if (upperE === "110MV") return upper.includes("110M") && (upper.includes("VALLAS") || upper.includes("V."));
-    if (upperE === "400MV") return upper.includes("400M") && (upper.includes("VALLAS") || upper.includes("V."));
-    if (upperE === "3000M OBS") return upper.includes("3000M") && (upper.includes("OBST") || upper.includes("OBS."));
-    if (upperE === "5000M MARCHA") return upper.includes("5000M") && upper.includes("MARCHA");
-    if (upperE === "4X100M") return upper.includes("4X100");
-    if (upperE === "4X400M") return upper.includes("4X400");
+    if (upperE === "100MV") return (normalized.includes("100") || normalized.includes("100M")) && (normalized.includes("VALLAS") || normalized.includes("V."));
+    if (upperE === "110MV") return (normalized.includes("110") || normalized.includes("110M")) && (normalized.includes("VALLAS") || normalized.includes("V."));
+    if (upperE === "400MV") return (normalized.includes("400") || normalized.includes("400M")) && (normalized.includes("VALLAS") || normalized.includes("V."));
+    if (upperE === "3000M OBS") return (normalized.includes("3000") || normalized.includes("3000M")) && (normalized.includes("OBST") || normalized.includes("OBS."));
+    if (upperE === "5000M MARCHA") return (normalized.includes("5000") || normalized.includes("5000M")) && normalized.includes("MARCHA");
+    if (upperE === "4X100M") return normalized.includes("4X100");
+    if (upperE === "4X400M") return normalized.includes("4X400");
     
     // Throwing events weight check
     const isThrow = ["PESO", "DISCO", "MARTILLO", "JABALINA"].includes(upperE);
     if (isThrow) {
-      if (!upper.includes(upperE)) return false;
+      if (!normalized.includes(upperE)) return false;
       
       // Normalize for weight checks (remove spaces and commas)
-      const normalized = upper.replace(/\s+/g, "").replace(",", ".");
+      const weightNormalized = normalized.replace(",", ".");
       
       // If it contains a weight specification, it MUST be the absolute one
       // If it doesn't contain a weight, we assume it's absolute (standard ranking format)
       if (gender === Gender.FEMALE) {
         if (upperE === "PESO" || upperE === "MARTILLO") {
           // Absolute is 4kg. Reject if it mentions 3kg, 2kg, etc.
-          if (normalized.includes("3K") || normalized.includes("2K") || (normalized.includes("KG") && !normalized.includes("4K"))) return false;
+          if (weightNormalized.includes("3K") || weightNormalized.includes("2K") || (weightNormalized.includes("KG") && !weightNormalized.includes("4K"))) return false;
         }
         if (upperE === "DISCO") {
           // Absolute is 1kg. Reject if it mentions 0.8kg, etc.
-          if (normalized.includes("0.8") || normalized.includes("800") || (normalized.includes("KG") && !normalized.includes("1K"))) return false;
+          if (weightNormalized.includes("0.8") || weightNormalized.includes("800") || (weightNormalized.includes("KG") && !weightNormalized.includes("1K"))) return false;
         }
         if (upperE === "JABALINA") {
           // Absolute is 600g. Reject if it mentions 500g, 400g, etc.
-          if (normalized.includes("500") || normalized.includes("400") || (normalized.includes("G") && !normalized.includes("600"))) return false;
+          if (weightNormalized.includes("500") || weightNormalized.includes("400") || (weightNormalized.includes("G") && !weightNormalized.includes("600"))) return false;
         }
       } else {
         // Male
         if (upperE === "PESO" || upperE === "MARTILLO") {
           // Absolute is 7.26kg (often labeled 7kg or 7,26kg)
           // Reject if it mentions 6kg, 5kg, 4kg, 3kg
-          if (normalized.includes("6K") || normalized.includes("5K") || normalized.includes("4K") || normalized.includes("3K")) return false;
+          if (weightNormalized.includes("6K") || weightNormalized.includes("5K") || weightNormalized.includes("4K") || weightNormalized.includes("3K")) return false;
         }
         if (upperE === "DISCO") {
           // Absolute is 2kg. Reject if it mentions 1.75, 1.5, 1kg
-          if (normalized.includes("1.7") || normalized.includes("1.5") || (normalized.includes("1K") && !normalized.includes("2K"))) return false;
+          if (weightNormalized.includes("1.7") || weightNormalized.includes("1.5") || (weightNormalized.includes("1K") && !weightNormalized.includes("2K"))) return false;
         }
         if (upperE === "JABALINA") {
           // Absolute is 800g. Reject if it mentions 700g, 600g
-          if (normalized.includes("700") || normalized.includes("600") || (normalized.includes("G") && !normalized.includes("800"))) return false;
+          if (weightNormalized.includes("700") || weightNormalized.includes("600") || (weightNormalized.includes("G") && !weightNormalized.includes("800"))) return false;
         }
       }
       return true;
@@ -227,17 +244,20 @@ export function isEstadilloEvent(eventName: string, gender: Gender): boolean {
     // For individual track events, ensure it's not a relay or hurdles
     const individualTrackEvents = ["100M", "200M", "400M", "800M", "1500M", "3000M", "5000M"];
     if (individualTrackEvents.includes(upperE)) {
-       // Must contain the distance
-       if (!upper.includes(upperE)) return false;
+       const distance = upperE.replace("M", "");
+       // Check if normalized contains the distance (e.g. "1500") as a word or followed by M
+       const distanceRegex = new RegExp(`\\b${distance}\\b|${distance}M`, "i");
+       if (!distanceRegex.test(normalized)) return false;
+
        // Must NOT contain hurdles or relay keywords
-       if (upper.includes("VALLAS") || upper.includes("V.") || upper.includes("4X") || upper.includes("OBST") || upper.includes("OBS.")) return false;
+       if (normalized.includes("VALLAS") || normalized.includes("V.") || normalized.includes("4X") || normalized.includes("OBST") || normalized.includes("OBS.")) return false;
        
        // Additional check for exact-ish match to avoid 100m matching 110m
-       if (upperE === "100M" && upper.includes("110M")) return false;
+       if (upperE === "100M" && normalized.includes("110M")) return false;
        
        return true;
     }
     
-    return upper.includes(upperE);
+    return normalized.includes(upperE) || upper.includes(upperE);
   });
 }

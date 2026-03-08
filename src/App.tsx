@@ -340,11 +340,10 @@ export default function App() {
         if (excludedEvents.includes(canonical)) return;
 
         section.entries.forEach(entry => {
-          // Only consider selected teams or all if none selected? 
-          // Actually, for estadillo we usually consider the main team + associated
-          // But let's use the current selected teams as the pool
-          if (selectedTeams.length > 0 && !selectedTeams.includes(entry.team)) return;
-
+          // In estadillo mode, we consider all athletes in the ranking pool
+          // to find the best possible combination for the main team + filiales.
+          // The estadillo logic below already handles mainTeam vs associated limits.
+          
           const points = calculateIAAFPoints(section.eventName, entry.mark, estadilloConfig.gender);
           if (points > 0) {
             candidates.push({
