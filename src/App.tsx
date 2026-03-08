@@ -185,10 +185,20 @@ export default function App() {
 
   const filteredTeams = useMemo(() => {
     if (!rankingData) return [];
-    return rankingData.allTeams.filter(team => 
-      team.toLowerCase().includes(teamSearch.toLowerCase())
-    );
-  }, [rankingData, teamSearch]);
+    
+    // Filter teams that have at least one entry in the current gender
+    const teamsInGender = new Set<string>();
+    rankingData.sections.forEach(section => {
+      const eventGender = getGenderFromEventName(section.eventName);
+      if (!eventGender || eventGender === rankingGender) {
+        section.entries.forEach(entry => teamsInGender.add(entry.team));
+      }
+    });
+
+    return Array.from(teamsInGender)
+      .filter(team => team.toLowerCase().includes(teamSearch.toLowerCase()))
+      .sort((a, b) => a.localeCompare(b));
+  }, [rankingData, teamSearch, rankingGender]);
 
   const toggleTeam = (team: string) => {
     setSelectedTeams(prev => 
@@ -532,9 +542,14 @@ export default function App() {
                           key={option.label}
                           onClick={() => {
                             setRankingGender(option.value);
-                            // Auto-select defaults if switching gender?
-                            // Let's just update the list of events and clear selection if needed
                             setSelectedEvent("ALL_EVENTS");
+                            
+                            // Auto-select defaults for the new gender
+                            const newDefaults = option.value === Gender.MALE ? defaultClubsMale : defaultClubsFemale;
+                            const availableDefaults = newDefaults.filter(club => 
+                              rankingData.allTeams.some(t => t.toUpperCase() === club.toUpperCase())
+                            );
+                            setSelectedTeams(availableDefaults);
                           }}
                           className={cn(
                             "flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
@@ -690,9 +705,11 @@ export default function App() {
                   <div className="bg-amber-50 p-2.5 rounded-xl">
                     <Calendar className="w-5 h-5 text-amber-600" />
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-[#6B7280]">Clubes Seleccionados</p>
-                    <p className="text-xl font-bold">{selectedTeams.length || "Todos"}</p>
+                    <p className="text-sm font-bold truncate" title={selectedTeams.length > 0 ? selectedTeams.join(", ") : "Todos"}>
+                      {selectedTeams.length > 0 ? selectedTeams.join(", ") : "Todos los clubes"}
+                    </p>
                   </div>
                 </div>
               </div>
