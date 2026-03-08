@@ -16,9 +16,10 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { RankingData, RankingEntry, RankingSection } from "./types";
-import { parseRankingFile, mergeRankingData } from "./utils/parser";
+import { parseRankingFile, mergeRankingData, parseRankingCSV } from "./utils/parser";
 import { calculateIAAFPoints, isEstadilloEvent, Gender, MALE_ESTADILLO_EVENTS, FEMALE_ESTADILLO_EVENTS, getCanonicalEventName, getGenderFromEventName } from "./services/iaafService";
 import * as XLSX from "xlsx";
+import { useEffect } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -69,6 +70,57 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const appendInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        const initialFiles = [
+          "/ranking_1.csv",
+          "/ranking_2.csv",
+          "/ranking_3.csv",
+          "/ranking_4.csv"
+        ];
+        
+        let combinedData: RankingData | null = null;
+
+        for (const fileUrl of initialFiles) {
+          try {
+            const response = await fetch(fileUrl);
+            if (response.ok) {
+              const csvText = await response.text();
+              const newData = parseRankingCSV(csvText);
+              if (newData.sections.length > 0) {
+                if (!combinedData) {
+                  combinedData = newData;
+                } else {
+                  combinedData = mergeRankingData(combinedData, newData);
+                }
+              }
+            }
+          } catch (e) {
+            console.warn(`No se pudo cargar el archivo inicial: ${fileUrl}`, e);
+          }
+        }
+
+        if (combinedData) {
+          setRankingData(combinedData);
+          if (combinedData.allEvents.length > 0) {
+            setSelectedEvent(combinedData.allEvents[0]);
+          }
+          
+          // Aplicar clubes por defecto para el género actual (Masculino por defecto)
+          const availableDefaults = INITIAL_DEFAULT_CLUBS_MALE.filter(club => 
+            combinedData!.allTeams.some(t => t.toUpperCase() === club.toUpperCase())
+          );
+          setSelectedTeams(availableDefaults);
+        }
+      } catch (err) {
+        console.error("Error cargando datos iniciales:", err);
+      }
+    };
+
+    loadInitialData();
+  }, []);
+
   const processFiles = async (files: FileList) => {
     setIsLoading(true);
     setError(null);
@@ -86,16 +138,17 @@ export default function App() {
 
       if (combinedData) {
         setRankingData(combinedData);
-        // Set default event if not already set
-        if (!selectedEvent && combinedData.allEvents.length > 0) {
+        // Always set the first event of the new data as selected
+        if (combinedData.allEvents.length > 0) {
           setSelectedEvent(combinedData.allEvents[0]);
         }
         
-        // Apply default clubs
-        const availableDefaults = currentDefaultClubs.filter(club => 
+        // Reset selected teams to defaults for the current gender
+        const newDefaults = rankingGender === Gender.MALE ? defaultClubsMale : defaultClubsFemale;
+        const availableDefaults = newDefaults.filter(club => 
           combinedData!.allTeams.some(t => t.toUpperCase() === club.toUpperCase())
         );
-        setSelectedTeams(prev => [...new Set([...prev, ...availableDefaults])]);
+        setSelectedTeams(availableDefaults);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al procesar el archivo");
@@ -362,7 +415,25 @@ export default function App() {
           
           <div className="flex items-center gap-4">
             {rankingData && (
-              <>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="file" 
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".csv,.xls,.xlsx"
+                  multiple
+                  className="hidden"
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading}
+                  className="text-sm font-semibold text-[#141414] hover:bg-gray-100 flex items-center gap-2 transition-colors border border-[#E5E7EB] px-3 py-1.5 rounded-lg"
+                  title="Reemplazar todo el ranking actual"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Cargar Nuevo
+                </button>
+
                 <input 
                   type="file" 
                   ref={appendInputRef}
@@ -375,11 +446,12 @@ export default function App() {
                   onClick={() => appendInputRef.current?.click()}
                   disabled={isLoading}
                   className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-2 transition-colors bg-blue-50 px-3 py-1.5 rounded-lg"
+                  title="Añadir datos al ranking actual"
                 >
                   <Upload className="w-4 h-4" />
-                  Añadir Ranking
+                  Añadir
                 </button>
-              </>
+              </div>
             )}
             <button 
               onClick={() => setShowSettings(true)}
