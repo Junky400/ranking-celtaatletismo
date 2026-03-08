@@ -72,49 +72,58 @@ export default function App() {
 
   useEffect(() => {
     const loadInitialData = async () => {
+      // Small delay to ensure server is ready
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setIsLoading(true);
       try {
         const initialFiles = [
-          "/ranking_1.csv",
-          "/ranking_2.csv",
-          "/ranking_3.csv",
-          "/ranking_4.csv"
+          "ranking_1.csv",
+          "ranking_2.csv",
+          "ranking_3.csv",
+          "ranking_4.csv"
         ];
         
         let combinedData: RankingData | null = null;
+        const baseUrl = window.location.origin;
 
-        for (const fileUrl of initialFiles) {
+        for (const fileName of initialFiles) {
           try {
-            const response = await fetch(fileUrl);
+            const response = await fetch(`${baseUrl}/${fileName}?v=${Date.now()}`);
             if (response.ok) {
               const csvText = await response.text();
-              const newData = parseRankingCSV(csvText);
-              if (newData.sections.length > 0) {
-                if (!combinedData) {
-                  combinedData = newData;
-                } else {
-                  combinedData = mergeRankingData(combinedData, newData);
+              if (csvText && csvText.trim().length > 0) {
+                const newData = parseRankingCSV(csvText);
+                if (newData.sections.length > 0) {
+                  if (!combinedData) {
+                    combinedData = newData;
+                  } else {
+                    combinedData = mergeRankingData(combinedData, newData);
+                  }
                 }
               }
             }
           } catch (e) {
-            console.warn(`No se pudo cargar el archivo inicial: ${fileUrl}`, e);
+            console.warn(`Error al cargar ${fileName}:`, e);
           }
         }
 
-        if (combinedData) {
+        if (combinedData && combinedData.sections.length > 0) {
           setRankingData(combinedData);
+          
           if (combinedData.allEvents.length > 0) {
             setSelectedEvent(combinedData.allEvents[0]);
           }
           
-          // Aplicar clubes por defecto para el género actual (Masculino por defecto)
           const availableDefaults = INITIAL_DEFAULT_CLUBS_MALE.filter(club => 
             combinedData!.allTeams.some(t => t.toUpperCase() === club.toUpperCase())
           );
           setSelectedTeams(availableDefaults);
         }
       } catch (err) {
-        console.error("Error cargando datos iniciales:", err);
+        console.error("Error crítico cargando datos iniciales:", err);
+      } finally {
+        setIsLoading(false);
       }
     };
 
