@@ -340,9 +340,18 @@ export default function App() {
         if (excludedEvents.includes(canonical)) return;
 
         section.entries.forEach(entry => {
-          // In estadillo mode, we consider all athletes in the ranking pool
-          // to find the best possible combination for the main team + filiales.
-          // The estadillo logic below already handles mainTeam vs associated limits.
+          const entryTeamUpper = entry.team?.toUpperCase().trim() || "";
+          const mainTeamUpper = estadilloConfig.mainTeam.toUpperCase().trim();
+          
+          const isMainTeam = entryTeamUpper === mainTeamUpper;
+          const isInSelected = selectedTeams.some(t => t.toUpperCase().trim() === entryTeamUpper);
+          
+          // An athlete is valid if they are from the main team 
+          // OR if they are from one of the selected teams.
+          // If no teams are selected, we ONLY consider the main team (no filiales).
+          const isValid = selectedTeams.length > 0 ? (isMainTeam || isInSelected) : isMainTeam;
+          
+          if (!isValid) return;
           
           const points = calculateIAAFPoints(section.eventName, entry.mark, estadilloConfig.gender);
           if (points > 0) {
@@ -353,7 +362,7 @@ export default function App() {
               mark: entry.mark,
               points,
               team: entry.team,
-              isAssociated: entry.team !== estadilloConfig.mainTeam
+              isAssociated: !isMainTeam
             });
           }
         });
