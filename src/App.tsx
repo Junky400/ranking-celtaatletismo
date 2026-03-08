@@ -166,6 +166,20 @@ export default function App() {
     }
   };
 
+  const handleEstadilloGenderChange = (gender: Gender) => {
+    const mainTeam = gender === Gender.MALE ? "RCVPO" : "CAFPO";
+    setEstadilloConfig(prev => ({ ...prev, gender, mainTeam }));
+    
+    // Update selected teams to match the gender defaults
+    const newDefaults = gender === Gender.MALE ? defaultClubsMale : defaultClubsFemale;
+    if (rankingData) {
+      const availableDefaults = newDefaults.filter(club => 
+        rankingData.allTeams.some(t => t.toUpperCase() === club.toUpperCase())
+      );
+      setSelectedTeams(availableDefaults);
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) processFiles(e.target.files);
   };
@@ -301,7 +315,7 @@ export default function App() {
       if (optimizedEstadillo.length === 0) return;
       const wb = XLSX.utils.book_new();
       const data: any[] = [
-        ["ESTADILLO OPTIMIZADO - RCVPO"],
+        [`ESTADILLO OPTIMIZADO - ${estadilloConfig.mainTeam}`],
         ["Puntuación Total:", optimizedEstadillo.reduce((acc, curr) => acc + curr.points, 0)],
         [],
         ["Prueba", "Atleta", "Marca", "Puntos IAAF", "Equipo"]
@@ -905,7 +919,7 @@ export default function App() {
                         <label className="block text-xs font-bold text-[#6B7280] uppercase mb-2">Categoría</label>
                         <div className="flex bg-[#F3F4F6] p-1 rounded-xl">
                           <button 
-                            onClick={() => setEstadilloConfig({...estadilloConfig, gender: Gender.MALE})}
+                            onClick={() => handleEstadilloGenderChange(Gender.MALE)}
                             className={cn(
                               "flex-1 py-1.5 text-xs font-bold rounded-lg transition-all",
                               estadilloConfig.gender === Gender.MALE ? "bg-white text-[#141414] shadow-sm" : "text-[#6B7280] hover:text-[#111827]"
@@ -914,7 +928,7 @@ export default function App() {
                             Masculino
                           </button>
                           <button 
-                            onClick={() => setEstadilloConfig({...estadilloConfig, gender: Gender.FEMALE})}
+                            onClick={() => handleEstadilloGenderChange(Gender.FEMALE)}
                             className={cn(
                               "flex-1 py-1.5 text-xs font-bold rounded-lg transition-all",
                               estadilloConfig.gender === Gender.FEMALE ? "bg-white text-[#141414] shadow-sm" : "text-[#6B7280] hover:text-[#111827]"
@@ -923,6 +937,23 @@ export default function App() {
                             Femenino
                           </button>
                         </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-[#6B7280] uppercase mb-2">Club Principal</label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF]" />
+                          <input 
+                            type="text"
+                            value={estadilloConfig.mainTeam}
+                            onChange={(e) => setEstadilloConfig({...estadilloConfig, mainTeam: e.target.value.toUpperCase()})}
+                            placeholder="Ej: CAFPO"
+                            className="w-full bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-black/5"
+                          />
+                        </div>
+                        <p className="text-[10px] text-[#9CA3AF] mt-1 italic">
+                          Define quién NO es filial
+                        </p>
                       </div>
 
                       <div>
