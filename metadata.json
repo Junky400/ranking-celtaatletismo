@@ -1,0 +1,5 @@
+{
+  "name": "Ranking Atletismo Galego",
+  "description": "Aplicación para filtrar y visualizar el ranking gallego de atletismo por prueba y club.",
+  "requestFramePermissions": []
+}
