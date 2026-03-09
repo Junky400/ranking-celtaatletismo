@@ -29,8 +29,8 @@ function cn(...inputs: ClassValue[]) {
 
 const DEFAULT_CLUBS_MALE_KEY = "ranking_galego_default_clubs_male";
 const DEFAULT_CLUBS_FEMALE_KEY = "ranking_galego_default_clubs_female";
-const INITIAL_DEFAULT_CLUBS_MALE = ["RCVPO", "STOC", "MAZPO", "BAIPO", "VCGPO", "PORPO"];
-const INITIAL_DEFAULT_CLUBS_FEMALE = ["CAFPO", "PUROR", "PORPO", "VCGPO", "NAOC"];
+const INITIAL_DEFAULT_CLUBS_MALE = ["RCVPO", "STOC", "MAZPO", "BAIPO", "VCGPO", "PORPO", "SAMPO"];
+const INITIAL_DEFAULT_CLUBS_FEMALE = ["CAFPO", "PUROR", "PORPO", "VCGPO", "NAOC", "SAMPO"];
 
 export default function App() {
   const [view, setView] = useState<"RANKING" | "ESTADILLO">("RANKING");
@@ -41,6 +41,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [teamSearch, setTeamSearch] = useState("");
   const [showSettings, setShowSettings] = useState(false);
+  const [tempClubsMale, setTempClubsMale] = useState("");
+  const [tempClubsFemale, setTempClubsFemale] = useState("");
   const [topLimit, setTopLimit] = useState<number | null>(null);
   const [rankingGender, setRankingGender] = useState<Gender>(Gender.MALE);
 
@@ -485,7 +487,11 @@ export default function App() {
               </div>
             )}
             <button 
-              onClick={() => setShowSettings(true)}
+              onClick={() => {
+                setTempClubsMale(defaultClubsMale.join("\n"));
+                setTempClubsFemale(defaultClubsFemale.join("\n"));
+                setShowSettings(true);
+              }}
               className="text-sm font-medium text-[#6B7280] hover:text-[#111827] flex items-center gap-2 transition-colors"
             >
               <Filter className="w-4 h-4" />
@@ -539,9 +545,9 @@ export default function App() {
                   <h4 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider mb-2">Masculino</h4>
                   <textarea 
                     className="w-full h-32 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl p-4 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#141414]/10"
-                    value={defaultClubsMale.join("\n")}
-                    onChange={(e) => saveDefaultClubs(e.target.value.split("\n").map(s => s.trim()).filter(Boolean), Gender.MALE)}
-                    placeholder="RCVPO\nSTOC\n..."
+                    value={tempClubsMale}
+                    onChange={(e) => setTempClubsMale(e.target.value)}
+                    placeholder="RCVPO&#10;STOC&#10;..."
                   />
                 </div>
                 
@@ -549,16 +555,22 @@ export default function App() {
                   <h4 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider mb-2">Femenino</h4>
                   <textarea 
                     className="w-full h-32 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl p-4 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#141414]/10"
-                    value={defaultClubsFemale.join("\n")}
-                    onChange={(e) => saveDefaultClubs(e.target.value.split("\n").map(s => s.trim()).filter(Boolean), Gender.FEMALE)}
-                    placeholder="CAFPO\nPUROR\n..."
+                    value={tempClubsFemale}
+                    onChange={(e) => setTempClubsFemale(e.target.value)}
+                    placeholder="CAFPO&#10;PUROR&#10;..."
                   />
                 </div>
               </div>
               
               <div className="mt-6 flex justify-end">
                 <button 
-                  onClick={() => setShowSettings(false)}
+                  onClick={() => {
+                    const maleClubs = tempClubsMale.split("\n").map(s => s.trim()).filter(Boolean);
+                    const femaleClubs = tempClubsFemale.split("\n").map(s => s.trim()).filter(Boolean);
+                    saveDefaultClubs(maleClubs, Gender.MALE);
+                    saveDefaultClubs(femaleClubs, Gender.FEMALE);
+                    setShowSettings(false);
+                  }}
                   className="bg-[#141414] text-white px-6 py-2 rounded-xl font-semibold hover:bg-[#2D2D2D] transition-all"
                 >
                   Guardar y Cerrar
