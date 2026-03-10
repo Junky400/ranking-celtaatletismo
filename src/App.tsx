@@ -32,6 +32,28 @@ const DEFAULT_CLUBS_FEMALE_KEY = "ranking_galego_default_clubs_female";
 const INITIAL_DEFAULT_CLUBS_MALE = ["RCVPO", "STOC", "MAZPO", "BAIPO", "VCGPO", "PORPO", "SAMPO"];
 const INITIAL_DEFAULT_CLUBS_FEMALE = ["CAFPO", "PUROR", "PORPO", "VCGPO", "NAOC", "SAMPO"];
 
+const CURRENT_YEAR = new Date().getFullYear();
+const U23_BIRTH_YEAR = CURRENT_YEAR - 22;
+
+const isU23OrYounger = (yearStr: string) => {
+  if (!yearStr) return false;
+  let year = parseInt(yearStr);
+  if (isNaN(year)) return false;
+  
+  // Handle 2-digit years
+  if (year < 100) {
+    // If year is 00-26, it's 2000-2026
+    // If year is 27-99, it's 1927-1999
+    if (year <= (CURRENT_YEAR % 100)) {
+      year += 2000;
+    } else {
+      year += 1900;
+    }
+  }
+  
+  return year >= U23_BIRTH_YEAR;
+};
+
 export default function App() {
   const [view, setView] = useState<"RANKING" | "ESTADILLO">("RANKING");
   const [rankingData, setRankingData] = useState<RankingData | null>(null);
@@ -45,6 +67,8 @@ export default function App() {
   const [tempClubsFemale, setTempClubsFemale] = useState("");
   const [topLimit, setTopLimit] = useState<number | null>(null);
   const [rankingGender, setRankingGender] = useState<Gender>(Gender.MALE);
+  const [rankingMainTeam, setRankingMainTeam] = useState("RCVPO");
+  const [rankingU23OnlyForFilials, setRankingU23OnlyForFilials] = useState(false);
 
   const [defaultClubsMale, setDefaultClubsMale] = useState<string[]>(() => {
     const saved = localStorage.getItem(DEFAULT_CLUBS_MALE_KEY);
@@ -64,7 +88,8 @@ export default function App() {
     maxEventsPerAthlete: 1,
     maxAssociatedAthletes: 5,
     mainTeam: "RCVPO",
-    gender: Gender.MALE
+    gender: Gender.MALE,
+    u23OnlyForFilials: false
   });
   const [excludedEvents, setExcludedEvents] = useState<string[]>(["4X100M", "4X400M"]);
   const [optimizedEstadillo, setOptimizedEstadillo] = useState<any[]>([]);
@@ -221,33 +246,42 @@ export default function App() {
       return !eventGender || eventGender === rankingGender;
     });
 
+    const processEntries = (entries: RankingEntry[]) => {
+      let result = selectedTeams.length > 0 
+        ? entries.filter(entry => selectedTeams.includes(entry.team))
+        : entries;
+
+      if (rankingU23OnlyForFilials) {
+        result = result.filter(entry => {
+          const entryTeamUpper = entry.team?.toUpperCase().trim() || "";
+          const mainTeamUpper = rankingMainTeam.toUpperCase().trim();
+          const isMainTeam = entryTeamUpper === mainTeamUpper;
+          
+          if (isMainTeam) return true;
+          return isU23OrYounger(entry.year);
+        });
+      }
+
+      if (topLimit !== null) {
+        result = result.slice(0, topLimit);
+      }
+
+      return result;
+    };
+
     if (selectedEvent === "ALL_EVENTS") {
       return genderFilteredSections.map(section => {
-        let entries = selectedTeams.length > 0 
-          ? section.entries.filter(entry => selectedTeams.includes(entry.team))
-          : section.entries;
-          
-        if (topLimit !== null) {
-          entries = entries.slice(0, topLimit);
-        }
-        
+        const entries = processEntries(section.entries);
         return { ...section, entries };
       }).filter(section => section.entries.length > 0);
     } else {
       const section = genderFilteredSections.find(s => s.eventName === selectedEvent);
       if (!section) return [];
       
-      let entries = selectedTeams.length > 0 
-        ? section.entries.filter(entry => selectedTeams.includes(entry.team))
-        : section.entries;
-        
-      if (topLimit !== null) {
-        entries = entries.slice(0, topLimit);
-      }
-        
+      const entries = processEntries(section.entries);
       return entries.length > 0 ? [{ ...section, entries }] : [];
     }
-  }, [rankingData, selectedEvent, selectedTeams, topLimit, rankingGender]);
+  }, [rankingData, selectedEvent, selectedTeams, topLimit, rankingGender, rankingU23OnlyForFilials, rankingMainTeam]);
 
   const totalFilteredEntriesCount = useMemo(() => {
     return filteredSections.reduce((acc, section) => acc + section.entries.length, 0);
@@ -351,7 +385,15 @@ export default function App() {
           // An athlete is valid if they are from the main team 
           // OR if they are from one of the selected teams.
           // If no teams are selected, we ONLY consider the main team (no filiales).
-          const isValid = selectedTeams.length > 0 ? (isMainTeam || isInSelected) : isMainTeam;
+          let isValid = selectedTeams.length > 0 ? (isMainTeam || isInSelected) : isMainTeam;
+          
+          // New Filter: If it's a filial (not main team) and the filter is active,
+          // only allow U23 and younger (born in U23_BIRTH_YEAR or later)
+          if (isValid && !isMainTeam && estadilloConfig.u23OnlyForFilials) {
+            if (!isU23OrYounger(entry.year)) {
+              isValid = false;
+            }
+          }
           
           if (!isValid) return;
           
@@ -658,6 +700,7 @@ export default function App() {
                           onClick={() => {
                             setRankingGender(option.value);
                             setSelectedEvent("ALL_EVENTS");
+                            setRankingMainTeam(option.value === Gender.MALE ? "RCVPO" : "CAFPO");
                             
                             // Auto-select defaults for the new gender
                             const newDefaults = option.value === Gender.MALE ? defaultClubsMale : defaultClubsFemale;
@@ -725,6 +768,41 @@ export default function App() {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* U23 Filial Filter */}
+                  <div className="space-y-4 pt-2 border-t border-[#F3F4F6]">
+                    <div>
+                      <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-wider mb-2">
+                        Club Principal
+                      </label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF]" />
+                        <input 
+                          type="text"
+                          value={rankingMainTeam}
+                          onChange={(e) => setRankingMainTeam(e.target.value.toUpperCase())}
+                          placeholder="Ej: RCVPO"
+                          className="w-full bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#141414]/10 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className="relative flex items-center">
+                        <input 
+                          type="checkbox"
+                          checked={rankingU23OnlyForFilials}
+                          onChange={(e) => setRankingU23OnlyForFilials(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-black/5 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+                      </div>
+                      <span className="text-xs font-bold text-[#6B7280] uppercase">Filiales solo U23 y menores</span>
+                    </label>
+                    <p className="text-[10px] text-[#9CA3AF] mt-1 italic">
+                      Solo atletas nacidos en {U23_BIRTH_YEAR} o posteriores para clubes filiales
+                    </p>
                   </div>
 
                   {/* Team Filter */}
@@ -1010,6 +1088,24 @@ export default function App() {
                         />
                         <p className="text-[10px] text-[#9CA3AF] mt-1 italic">
                           Atletas que no son del {estadilloConfig.mainTeam}
+                        </p>
+                      </div>
+
+                      <div className="pt-2">
+                        <label className="flex items-center gap-3 cursor-pointer group">
+                          <div className="relative flex items-center">
+                            <input 
+                              type="checkbox"
+                              checked={estadilloConfig.u23OnlyForFilials}
+                              onChange={(e) => setEstadilloConfig({...estadilloConfig, u23OnlyForFilials: e.target.checked})}
+                              className="sr-only peer"
+                            />
+                            <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-black/5 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+                          </div>
+                          <span className="text-xs font-bold text-[#6B7280] uppercase">Filiales solo U23 y menores</span>
+                        </label>
+                        <p className="text-[10px] text-[#9CA3AF] mt-1 italic">
+                          Solo atletas nacidos en {U23_BIRTH_YEAR} o posteriores para clubes filiales
                         </p>
                       </div>
 
