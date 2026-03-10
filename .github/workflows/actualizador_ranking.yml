@@ -1,20 +1,48 @@
-- name: Ejecutar el Agente
+name: Agente de Ranking Celta
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  scrape_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Instalar Dependencias
+        run: pip install pandas requests lxml html5lib
+
+      - name: Ejecutar Scraper
         run: python scraper_celta.py
 
-      - name: Guardar cambios
+      - name: Commit y Push
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
-          # TRUCO FINAL: Si el script falló y no creó el archivo, lo creamos vacío aquí
-          mkdir -p public
-          touch public/ranking_celta.csv
-          
-          git add public/ranking_celta.csv
-          
-          if git diff --staged --quiet; then
-            echo "Sin cambios nuevos que subir."
+          # Nos aseguramos de que el archivo existe antes de añadirlo
+          if [ -f "public/ranking_celta.csv" ]; then
+            git add public/ranking_celta.csv
+            
+            # Solo hacemos commit si hay cambios reales
+            if ! git diff --cached --quiet; then
+              git commit -m "Actualización automática: $(date +'%Y-%m-%d')"
+              git push
+            else
+              echo "No hay cambios en los datos."
+            fi
           else
-            git commit -m "Actualización automática: $(date +'%Y-%m-%d')"
-            git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:main
+            echo "Error: El script de Python no generó el archivo csv."
+            exit 1
           fi
