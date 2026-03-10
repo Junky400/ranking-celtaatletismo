@@ -2,12 +2,11 @@ name: Agente de Ranking Celta
 
 on:
   schedule:
-    # Se ejecuta todos los lunes a las 02:00 AM UTC
     - cron: '0 2 * * 1'
-  workflow_dispatch: # Permite ejecución manual con el botón "Run workflow"
+  workflow_dispatch:
 
 permissions:
-  contents: write # Permiso explícito para que el robot pueda escribir archivos
+  contents: write
 
 jobs:
   scrape_and_deploy:
@@ -15,6 +14,9 @@ jobs:
     steps:
       - name: Descargar el código del repositorio
         uses: actions/checkout@v4
+        with:
+          # Esto es clave: permite que el bot tenga permisos de push
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Instalar Python
         uses: actions/setup-python@v5
@@ -29,20 +31,17 @@ jobs:
         run: python scraper_celta.py
 
       - name: Guardar cambios en el Repositorio
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Configuración de identidad del robot
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
-          # Añadir el archivo generado
           git add public/ranking_celta.csv
           
-          # Solo hacer commit y push si el archivo ha cambiado realmente
+          # Comprobamos si hay cambios
           if git diff --staged --quiet; then
-            echo "No hay cambios en el ranking hoy."
+            echo "No hay cambios para subir."
           else
-            git commit -m "Actualización automática ranking: $(date +'%Y-%m-%d')"
-            git push origin main
+            git commit -m "Actualización automática: $(date +'%Y-%m-%d')"
+            # Usamos el token de forma explícita en el push
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
           fi
