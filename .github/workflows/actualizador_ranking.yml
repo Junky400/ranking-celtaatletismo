@@ -1,0 +1,36 @@
+name: Agente de Ranking Celta
+
+on:
+  schedule:
+    # Se ejecutará todos los lunes a las 02:00 AM (hora UTC)
+    - cron: '0 2 * * 1'
+  workflow_dispatch: # Esto te permite darle al botón "Play" y ejecutarlo cuando quieras
+
+jobs:
+  scrape_and_deploy:
+    runs-on: ubuntu-latest # Usa una computadora virtual con Linux
+    steps:
+      - name: Descargar el código del repositorio
+        uses: actions/checkout@v4 # El robot "clona" tu proyecto para poder trabajar
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10' # Instalamos la versión estable de Python
+
+      - name: Instalar herramientas de extracción
+        run: |
+          # Instalamos Pandas para manejar tablas y librerías para leer HTML
+          pip install pandas requests lxml html5lib
+
+      - name: Ejecutar el Agente (Script de Python)
+        run: python scraper_celta.py # Aquí es donde se ejecutará el cerebro que haremos en el Paso 2
+
+      - name: Guardar cambios en el Repositorio
+        run: |
+          git config --global user.name 'Agente Celta Bot'
+          git config --global user.email 'bot@celtaranking.com'
+          git add public/ranking_celta.csv
+          # Solo guarda si hay cambios nuevos, si no, no hace nada
+          git commit -m "Actualización automática: $(date +'%Y-%m-%d')" || exit 0
+          git push
