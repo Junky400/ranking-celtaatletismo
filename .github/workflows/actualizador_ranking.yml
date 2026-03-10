@@ -15,33 +15,34 @@ jobs:
       - name: Descargar el código del repositorio
         uses: actions/checkout@v4
         with:
-          # Esto es clave: permite que el bot tenga permisos de push
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0 # Descarga todo el historial para evitar conflictos de ramas
 
       - name: Instalar Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Instalar herramientas de extracción
-        run: |
-          pip install pandas requests lxml html5lib
+      - name: Instalar herramientas
+        run: pip install pandas requests lxml html5lib
 
-      - name: Ejecutar el Agente (Script de Python)
+      - name: Ejecutar el Agente
         run: python scraper_celta.py
 
-      - name: Guardar cambios en el Repositorio
+      - name: Guardar cambios
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
           git add public/ranking_celta.csv
           
-          # Comprobamos si hay cambios
+          # Solo subir si hay cambios reales
           if git diff --staged --quiet; then
-            echo "No hay cambios para subir."
+            echo "Sin cambios detectados."
           else
-            git commit -m "Actualización automática: $(date +'%Y-%m-%d')"
+            git commit -m "Actualización automática ranking $(date +'%Y-%m-%d')"
+            # Forzamos el push usando la URL con el token de seguridad
+            git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:main
+          filización automática: $(date +'%Y-%m-%d')"
             # Usamos el token de forma explícita en el push
             git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
           fi
