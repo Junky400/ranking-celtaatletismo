@@ -2,35 +2,47 @@ name: Agente de Ranking Celta
 
 on:
   schedule:
-    # Se ejecutará todos los lunes a las 02:00 AM (hora UTC)
+    # Se ejecuta todos los lunes a las 02:00 AM UTC
     - cron: '0 2 * * 1'
-  workflow_dispatch: # Esto te permite darle al botón "Play" y ejecutarlo cuando quieras
+  workflow_dispatch: # Permite ejecución manual con el botón "Run workflow"
+
+permissions:
+  contents: write # Permiso explícito para que el robot pueda escribir archivos
 
 jobs:
   scrape_and_deploy:
-    runs-on: ubuntu-latest # Usa una computadora virtual con Linux
+    runs-on: ubuntu-latest
     steps:
       - name: Descargar el código del repositorio
-        uses: actions/checkout@v4 # El robot "clona" tu proyecto para poder trabajar
+        uses: actions/checkout@v4
 
       - name: Instalar Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10' # Instalamos la versión estable de Python
+          python-version: '3.10'
 
       - name: Instalar herramientas de extracción
         run: |
-          # Instalamos Pandas para manejar tablas y librerías para leer HTML
           pip install pandas requests lxml html5lib
 
       - name: Ejecutar el Agente (Script de Python)
-        run: python scraper_celta.py # Aquí es donde se ejecutará el cerebro que haremos en el Paso 2
+        run: python scraper_celta.py
 
       - name: Guardar cambios en el Repositorio
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --global user.name 'Agente Celta Bot'
-          git config --global user.email 'bot@celtaranking.com'
+          # Configuración de identidad del robot
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          # Añadir el archivo generado
           git add public/ranking_celta.csv
-          # Solo guarda si hay cambios nuevos, si no, no hace nada
-          git commit -m "Actualización automática: $(date +'%Y-%m-%d')" || exit 0
-          git push
+          
+          # Solo hacer commit y push si el archivo ha cambiado realmente
+          if git diff --staged --quiet; then
+            echo "No hay cambios en el ranking hoy."
+          else
+            git commit -m "Actualización automática ranking: $(date +'%Y-%m-%d')"
+            git push origin main
+          fi
