@@ -104,15 +104,29 @@ export default function App() {
       
       setIsLoading(true);
       try {
+        console.log("Cargando archivos iniciales...");
         // Fetch the list of CSV files from the server
-        const filesResponse = await fetch("/api/csv-files");
-        const initialFiles: string[] = await filesResponse.json();
+        let initialFiles: string[] = [];
+        try {
+          const filesResponse = await fetch("/api/csv-files");
+          if (filesResponse.ok) {
+            initialFiles = await filesResponse.json();
+          } else {
+            console.warn("API de archivos no disponible, usando fallback");
+            initialFiles = ["ranking_1.csv", "ranking_2.csv", "ranking_3.csv", "ranking_4.csv"];
+          }
+        } catch (e) {
+          console.warn("Error al conectar con la API, usando fallback:", e);
+          initialFiles = ["ranking_1.csv", "ranking_2.csv", "ranking_3.csv", "ranking_4.csv"];
+        }
         
+        console.log("Archivos a cargar:", initialFiles);
         let combinedData: RankingData | null = null;
         const baseUrl = window.location.origin;
 
         for (const fileName of initialFiles) {
           try {
+            console.log(`Cargando: ${fileName}`);
             const response = await fetch(`${baseUrl}/${fileName}?v=${Date.now()}`);
             if (response.ok) {
               const csvText = await response.text();
@@ -126,6 +140,8 @@ export default function App() {
                   }
                 }
               }
+            } else {
+              console.warn(`No se pudo cargar ${fileName}: ${response.statusText}`);
             }
           } catch (e) {
             console.warn(`Error al cargar ${fileName}:`, e);

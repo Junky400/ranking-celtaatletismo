@@ -13,7 +13,7 @@ async function startServer() {
 
   // API route to list CSV files in the public folder
   app.get("/api/csv-files", (req, res) => {
-    const publicPath = path.join(__dirname, "public");
+    const publicPath = path.resolve(process.cwd(), "public");
     try {
       if (!fs.existsSync(publicPath)) {
         return res.json([]);
@@ -26,6 +26,9 @@ async function startServer() {
       res.status(500).json({ error: "Failed to list files" });
     }
   });
+
+  // Explicitly serve public folder
+  app.use(express.static(path.resolve(process.cwd(), "public")));
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
