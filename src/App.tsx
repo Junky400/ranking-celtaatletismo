@@ -104,12 +104,9 @@ export default function App() {
       
       setIsLoading(true);
       try {
-        const initialFiles = [
-          "ranking_1.csv",
-          "ranking_2.csv",
-          "ranking_3.csv",
-          "ranking_4.csv"
-        ];
+        // Fetch the list of CSV files from the server
+        const filesResponse = await fetch("/api/csv-files");
+        const initialFiles: string[] = await filesResponse.json();
         
         let combinedData: RankingData | null = null;
         const baseUrl = window.location.origin;
