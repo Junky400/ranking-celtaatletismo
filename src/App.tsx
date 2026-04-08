@@ -12,7 +12,8 @@ import {
   FileSpreadsheet,
   AlertCircle,
   Check,
-  Download
+  Download,
+  RefreshCcw
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { RankingData, RankingEntry, RankingSection } from "./types";
@@ -97,101 +98,101 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const appendInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const loadInitialData = async () => {
-      // Small delay to ensure server is ready
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setIsLoading(true);
+  const refreshPublicData = async () => {
+    setIsLoading(true);
+    try {
+      console.log("Cargando archivos iniciales...");
+      // Fetch the list of CSV files from the server
+      let initialFiles: string[] = [];
       try {
-        console.log("Cargando archivos iniciales...");
-        // Fetch the list of CSV files from the server
-        let initialFiles: string[] = [];
-        try {
-          const filesResponse = await fetch("/api/csv-files");
-          if (filesResponse.ok) {
-            initialFiles = await filesResponse.json();
-          } else {
-            console.warn("API de archivos no disponible, usando fallback");
-            initialFiles = ["ranking_fem_2026.csv"];
-          }
-        } catch (e) {
-          console.warn("Error al conectar con la API, usando fallback:", e);
-          initialFiles = ["ranking_fem_2026.csv"];
+        const filesResponse = await fetch("/api/csv-files");
+        if (filesResponse.ok) {
+          initialFiles = await filesResponse.json();
+        } else {
+          console.warn("API de archivos no disponible");
+          initialFiles = [];
         }
-        
-        console.log("Archivos a cargar:", initialFiles);
-        let combinedData: RankingData | null = null;
-        const baseUrl = window.location.origin;
+      } catch (e) {
+        console.warn("Error al conectar con la API:", e);
+        initialFiles = [];
+      }
+      
+      console.log("Archivos a cargar:", initialFiles);
+      let combinedData: RankingData | null = null;
+      const baseUrl = window.location.origin;
 
-        for (const fileName of initialFiles) {
-          try {
-            console.log(`Cargando: ${fileName}`);
-            const response = await fetch(`${baseUrl}/${fileName}?v=${Date.now()}`);
-            if (response.ok) {
-              const csvText = await response.text();
-              console.log(`Contenido de ${fileName} (primeros 100 chars): ${csvText.substring(0, 100)}`);
-              if (csvText && csvText.trim().length > 0) {
-                const newData = parseRankingCSV(csvText);
-                console.log(`Secciones encontradas en ${fileName}: ${newData.sections.length}`);
-                if (newData.sections.length > 0) {
-                  if (!combinedData) {
-                    combinedData = newData;
-                  } else {
-                    combinedData = mergeRankingData(combinedData, newData);
-                  }
+      for (const fileName of initialFiles) {
+        try {
+          console.log(`Cargando: ${fileName}`);
+          const response = await fetch(`${baseUrl}/${fileName}?v=${Date.now()}`);
+          if (response.ok) {
+            const csvText = await response.text();
+            if (csvText && csvText.trim().length > 0) {
+              const newData = parseRankingCSV(csvText);
+              if (newData.sections.length > 0) {
+                if (!combinedData) {
+                  combinedData = newData;
+                } else {
+                  combinedData = mergeRankingData(combinedData, newData);
                 }
               }
-            } else {
-              console.warn(`No se pudo cargar ${fileName}: ${response.statusText} (Status: ${response.status})`);
             }
-          } catch (e) {
-            console.warn(`Error al cargar ${fileName}:`, e);
+          } else {
+            console.warn(`No se pudo cargar ${fileName}: ${response.statusText} (Status: ${response.status})`);
           }
+        } catch (e) {
+          console.warn(`Error al cargar ${fileName}:`, e);
         }
-
-        if (combinedData && combinedData.sections.length > 0) {
-          setRankingData(combinedData);
-          
-          // Detect predominant gender
-          let maleCount = 0;
-          let femaleCount = 0;
-          combinedData.sections.forEach(s => {
-            const g = getGenderFromEventName(s.eventName);
-            if (g === Gender.MALE) maleCount++;
-            else if (g === Gender.FEMALE) femaleCount++;
-          });
-          
-          const detectedGender = femaleCount > maleCount ? Gender.FEMALE : Gender.MALE;
-          setRankingGender(detectedGender);
-          setEstadilloConfig(prev => ({ ...prev, gender: detectedGender }));
-
-          // Filter events for the detected gender
-          const genderEvents = combinedData.allEvents.filter(e => {
-            const g = getGenderFromEventName(e);
-            return !g || g === detectedGender;
-          });
-
-          if (genderEvents.length > 0) {
-            setSelectedEvent(genderEvents[0]);
-          } else if (combinedData.allEvents.length > 0) {
-            setSelectedEvent(combinedData.allEvents[0]);
-          }
-          
-          const defaultClubs = detectedGender === Gender.MALE ? INITIAL_DEFAULT_CLUBS_MALE : INITIAL_DEFAULT_CLUBS_FEMALE;
-          const availableDefaults = defaultClubs.filter(club => 
-            combinedData!.allTeams.some(t => t.toUpperCase() === club.toUpperCase())
-          );
-          setSelectedTeams(availableDefaults);
-        }
-      } catch (err) {
-        console.error("Error crítico cargando datos iniciales:", err);
-      } finally {
-        setIsLoading(false);
       }
-    };
 
-    loadInitialData();
+      if (combinedData && combinedData.sections.length > 0) {
+        setRankingData(combinedData);
+        
+        // Detect predominant gender
+        let maleCount = 0;
+        let femaleCount = 0;
+        combinedData.sections.forEach(s => {
+          const g = getGenderFromEventName(s.eventName);
+          if (g === Gender.MALE) maleCount++;
+          else if (g === Gender.FEMALE) femaleCount++;
+        });
+        
+        const detectedGender = femaleCount > maleCount ? Gender.FEMALE : Gender.MALE;
+        setRankingGender(detectedGender);
+        setEstadilloConfig(prev => ({ ...prev, gender: detectedGender }));
+
+        // Filter events for the detected gender
+        const genderEvents = combinedData.allEvents.filter(e => {
+          const g = getGenderFromEventName(e);
+          return !g || g === detectedGender;
+        });
+
+        if (genderEvents.length > 0) {
+          setSelectedEvent(genderEvents[0]);
+        } else if (combinedData.allEvents.length > 0) {
+          setSelectedEvent(combinedData.allEvents[0]);
+        }
+        
+        const defaultClubs = detectedGender === Gender.MALE ? INITIAL_DEFAULT_CLUBS_MALE : INITIAL_DEFAULT_CLUBS_FEMALE;
+        const availableDefaults = defaultClubs.filter(club => 
+          combinedData!.allTeams.some(t => t.toUpperCase() === club.toUpperCase())
+        );
+        setSelectedTeams(availableDefaults);
+      }
+    } catch (err) {
+      console.error("Error crítico cargando datos iniciales:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const init = async () => {
+      // Small delay to ensure server is ready
+      await new Promise(resolve => setTimeout(resolve, 500));
+      refreshPublicData();
+    };
+    init();
   }, []);
 
   const processFiles = async (files: FileList) => {
@@ -528,6 +529,18 @@ export default function App() {
           <div className="flex items-center gap-4">
             {rankingData && (
               <div className="flex items-center gap-2">
+                <button 
+                  onClick={refreshPublicData}
+                  disabled={isLoading}
+                  className={cn(
+                    "p-2 text-[#6B7280] hover:text-[#111827] hover:bg-gray-100 rounded-lg transition-all",
+                    isLoading && "animate-spin"
+                  )}
+                  title="Recargar datos de la carpeta pública"
+                >
+                  <RefreshCcw className="w-4 h-4" />
+                </button>
+
                 <input 
                   type="file" 
                   ref={fileInputRef}
@@ -685,18 +698,29 @@ export default function App() {
                 className="hidden"
               />
               
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading}
-                className="bg-[#141414] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#2D2D2D] transition-all flex items-center gap-2 mx-auto disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                ) : (
-                  <FileSpreadsheet className="w-5 h-5" />
-                )}
-                {isLoading ? "Procesando..." : "Seleccionar Archivo(s)"}
-              </button>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading}
+                  className="bg-[#141414] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#2D2D2D] transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                  ) : (
+                    <FileSpreadsheet className="w-5 h-5" />
+                  )}
+                  {isLoading ? "Procesando..." : "Seleccionar Archivo(s)"}
+                </button>
+
+                <button 
+                  onClick={refreshPublicData}
+                  disabled={isLoading}
+                  className="bg-white text-[#141414] border border-[#E5E7EB] px-8 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  <RefreshCcw className={cn("w-5 h-5", isLoading && "animate-spin")} />
+                  Escanear Carpeta Pública
+                </button>
+              </div>
               <p className="mt-4 text-[10px] text-[#9CA3AF] uppercase tracking-widest font-bold">
                 Puedes seleccionar varios archivos a la vez
               </p>
