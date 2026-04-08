@@ -16,12 +16,14 @@ export interface IAAFParams {
 // I will use a set of standard coefficients for the requested absolute events.
 
 const MALE_COEFFICIENTS: Record<string, IAAFParams & { isField: boolean }> = {
+  "60M": { a: 48.41, b: 13.0, c: 1.81, isField: false },
   "100M": { a: 27.17, b: 18.0, c: 1.81, isField: false },
   "200M": { a: 6.33, b: 38.0, c: 1.81, isField: false },
   "400M": { a: 1.66, b: 82.0, c: 1.81, isField: false },
   "800M": { a: 0.125, b: 235.0, c: 1.85, isField: false },
   "1500M": { a: 0.035, b: 480.0, c: 1.85, isField: false },
   "3000M": { a: 0.0105, b: 1005.0, c: 1.85, isField: false },
+  "60MV": { a: 20.51, b: 15.5, c: 1.92, isField: false },
   "110MV": { a: 5.74352, b: 28.5, c: 1.92, isField: false },
   "400MV": { a: 1.1466, b: 92.0, c: 1.81, isField: false },
   "3000M OBS": { a: 0.00511, b: 1150.0, c: 1.9, isField: false },
@@ -40,12 +42,14 @@ const MALE_COEFFICIENTS: Record<string, IAAFParams & { isField: boolean }> = {
 };
 
 const FEMALE_COEFFICIENTS: Record<string, IAAFParams & { isField: boolean }> = {
+  "60M": { a: 47.76, b: 14.0, c: 1.81, isField: false },
   "100M": { a: 17.857, b: 21.0, c: 1.81, isField: false },
   "200M": { a: 4.9908, b: 42.5, c: 1.81, isField: false },
   "400M": { a: 1.3428, b: 91.5, c: 1.81, isField: false },
   "800M": { a: 0.11193, b: 254.0, c: 1.88, isField: false },
   "1500M": { a: 0.02883, b: 535.0, c: 1.88, isField: false },
   "3000M": { a: 0.00683, b: 1150.0, c: 1.88, isField: false },
+  "60MV": { a: 20.0, b: 16.0, c: 1.835, isField: false },
   "100MV": { a: 9.23076, b: 26.7, c: 1.835, isField: false },
   "400MV": { a: 0.99674, b: 103.0, c: 1.81, isField: false },
   "3000M OBS": { a: 0.00385, b: 1320.0, c: 1.9, isField: false },
@@ -70,6 +74,7 @@ export function getCanonicalEventName(eventName: string): string {
   
   if (normalized.includes("4X100")) return "4X100M";
   if (normalized.includes("4X400")) return "4X400M";
+  if (normalized.includes("60M") && (normalized.includes("VALLAS") || normalized.includes("V."))) return "60MV";
   if (normalized.includes("100M") && (normalized.includes("VALLAS") || normalized.includes("V."))) return "100MV";
   if (normalized.includes("110M") && (normalized.includes("VALLAS") || normalized.includes("V."))) return "110MV";
   if (normalized.includes("400M") && (normalized.includes("VALLAS") || normalized.includes("V."))) return "400MV";
@@ -84,6 +89,7 @@ export function getCanonicalEventName(eventName: string): string {
   const hasMarcha = normalized.includes("MARCHA");
 
   if (!hasHurdles && !hasRelay && !hasObstacles && !hasMarcha) {
+    if (/\b60\b|60M/.test(normalized)) return "60M";
     if (/\b100\b|100M/.test(normalized) && !/\b110\b|110M/.test(normalized)) return "100M";
     if (/\b200\b|200M/.test(normalized)) return "200M";
     if (/\b400\b|400M/.test(normalized)) return "400M";
@@ -156,16 +162,16 @@ function parseMarkToSeconds(mark: string): number {
 }
 
 export const MALE_ESTADILLO_EVENTS = [
-  "100m", "200m", "400m", "800m", "1500m", "3000m", "5000m",
-  "110mv", "400mv", "3000m obs", 
+  "60m", "100m", "200m", "400m", "800m", "1500m", "3000m", "5000m",
+  "60mv", "110mv", "400mv", "3000m obs", 
   "Longitud", "Triple", "Pértiga", "Altura", 
   "Martillo", "Peso", "Disco", "Jabalina", "5000m marcha",
   "4x100m", "4x400m"
 ];
 
 export const FEMALE_ESTADILLO_EVENTS = [
-  "100m", "200m", "400m", "800m", "1500m", "3000m", "5000m",
-  "100mv", "400mv", "3000m obs", 
+  "60m", "100m", "200m", "400m", "800m", "1500m", "3000m", "5000m",
+  "60mv", "100mv", "400mv", "3000m obs", 
   "Longitud", "Triple", "Pértiga", "Altura", 
   "Martillo", "Peso", "Disco", "Jabalina", "5000m marcha",
   "4x100m", "4x400m"
@@ -191,6 +197,8 @@ export function isEstadilloEvent(eventName: string, gender: Gender): boolean {
     const upperE = e.toUpperCase();
     
     // Special handling for events that can be confused
+    if (upperE === "60M") return (normalized.includes("60") || normalized.includes("60M")) && !(normalized.includes("VALLAS") || normalized.includes("V."));
+    if (upperE === "60MV") return (normalized.includes("60") || normalized.includes("60M")) && (normalized.includes("VALLAS") || normalized.includes("V."));
     if (upperE === "100MV") return (normalized.includes("100") || normalized.includes("100M")) && (normalized.includes("VALLAS") || normalized.includes("V."));
     if (upperE === "110MV") return (normalized.includes("110") || normalized.includes("110M")) && (normalized.includes("VALLAS") || normalized.includes("V."));
     if (upperE === "400MV") return (normalized.includes("400") || normalized.includes("400M")) && (normalized.includes("VALLAS") || normalized.includes("V."));

@@ -113,11 +113,11 @@ export default function App() {
             initialFiles = await filesResponse.json();
           } else {
             console.warn("API de archivos no disponible, usando fallback");
-            initialFiles = ["ranking_1.csv", "ranking_2.csv", "ranking_3.csv", "ranking_4.csv"];
+            initialFiles = ["ranking_fem_2026.csv"];
           }
         } catch (e) {
           console.warn("Error al conectar con la API, usando fallback:", e);
-          initialFiles = ["ranking_1.csv", "ranking_2.csv", "ranking_3.csv", "ranking_4.csv"];
+          initialFiles = ["ranking_fem_2026.csv"];
         }
         
         console.log("Archivos a cargar:", initialFiles);
@@ -130,8 +130,10 @@ export default function App() {
             const response = await fetch(`${baseUrl}/${fileName}?v=${Date.now()}`);
             if (response.ok) {
               const csvText = await response.text();
+              console.log(`Contenido de ${fileName} (primeros 100 chars): ${csvText.substring(0, 100)}`);
               if (csvText && csvText.trim().length > 0) {
                 const newData = parseRankingCSV(csvText);
+                console.log(`Secciones encontradas en ${fileName}: ${newData.sections.length}`);
                 if (newData.sections.length > 0) {
                   if (!combinedData) {
                     combinedData = newData;
@@ -141,7 +143,7 @@ export default function App() {
                 }
               }
             } else {
-              console.warn(`No se pudo cargar ${fileName}: ${response.statusText}`);
+              console.warn(`No se pudo cargar ${fileName}: ${response.statusText} (Status: ${response.status})`);
             }
           } catch (e) {
             console.warn(`Error al cargar ${fileName}:`, e);
@@ -151,11 +153,33 @@ export default function App() {
         if (combinedData && combinedData.sections.length > 0) {
           setRankingData(combinedData);
           
-          if (combinedData.allEvents.length > 0) {
+          // Detect predominant gender
+          let maleCount = 0;
+          let femaleCount = 0;
+          combinedData.sections.forEach(s => {
+            const g = getGenderFromEventName(s.eventName);
+            if (g === Gender.MALE) maleCount++;
+            else if (g === Gender.FEMALE) femaleCount++;
+          });
+          
+          const detectedGender = femaleCount > maleCount ? Gender.FEMALE : Gender.MALE;
+          setRankingGender(detectedGender);
+          setEstadilloConfig(prev => ({ ...prev, gender: detectedGender }));
+
+          // Filter events for the detected gender
+          const genderEvents = combinedData.allEvents.filter(e => {
+            const g = getGenderFromEventName(e);
+            return !g || g === detectedGender;
+          });
+
+          if (genderEvents.length > 0) {
+            setSelectedEvent(genderEvents[0]);
+          } else if (combinedData.allEvents.length > 0) {
             setSelectedEvent(combinedData.allEvents[0]);
           }
           
-          const availableDefaults = INITIAL_DEFAULT_CLUBS_MALE.filter(club => 
+          const defaultClubs = detectedGender === Gender.MALE ? INITIAL_DEFAULT_CLUBS_MALE : INITIAL_DEFAULT_CLUBS_FEMALE;
+          const availableDefaults = defaultClubs.filter(club => 
             combinedData!.allTeams.some(t => t.toUpperCase() === club.toUpperCase())
           );
           setSelectedTeams(availableDefaults);
@@ -1089,6 +1113,19 @@ export default function App() {
                           <option value={1}>Máximo 1 prueba</option>
                           <option value={2}>Máximo 2 pruebas</option>
                         </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-[#6B7280] uppercase mb-2">Clubes Filiales (uno por línea)</label>
+                        <textarea 
+                          value={selectedTeams.join("\n")}
+                          onChange={(e) => {
+                            const clubs = e.target.value.split("\n").map(s => s.trim().toUpperCase()).filter(Boolean);
+                            setSelectedTeams(clubs);
+                          }}
+                          placeholder="Ej: RCVPO&#10;STOC"
+                          className="w-full h-24 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl px-4 py-2 text-sm font-mono focus:ring-2 focus:ring-black/5"
+                        />
                       </div>
 
                       <div>

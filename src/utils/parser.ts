@@ -17,7 +17,9 @@ function isValidTeam(teamName: string): boolean {
 }
 
 export function parseRankingCSV(csvContent: string): RankingData {
-  const lines = csvContent.split(/\r?\n/);
+  // Normalize non-breaking spaces and other weird whitespace
+  const normalizedContent = csvContent.replace(/\xa0/g, " ");
+  const lines = normalizedContent.split(/\r?\n/);
   const sections: RankingSection[] = [];
   const teamsSet = new Set<string>();
   const eventsSet = new Set<string>();
@@ -57,6 +59,7 @@ export function parseRankingCSV(csvContent: string): RankingData {
       const eventName = parts[0];
       
       if (isLikelyEventName(eventName)) {
+        console.log(`Encontrada sección: ${eventName}`);
         currentSection = { eventName, entries: [] };
         sections.push(currentSection);
         eventsSet.add(eventName);
@@ -94,6 +97,8 @@ export function parseRankingCSV(csvContent: string): RankingData {
       if (teamName) {
         teamsSet.add(teamName);
       }
+    } else if (currentSection && !isHeaderRow && parts.length > 0 && /^\d+$/.test(parts[0])) {
+       console.warn(`Fila de datos ignorada (posible formato incorrecto): ${line}`);
     }
   }
 
