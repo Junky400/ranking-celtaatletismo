@@ -126,7 +126,7 @@ export default function App() {
       for (const fileName of initialFiles) {
         try {
           console.log(`Cargando: ${fileName}`);
-          const response = await fetch(`${baseUrl}/${fileName}?v=${Date.now()}`);
+          const response = await fetch(`/${fileName}?v=${Date.now()}`);
           if (response.ok) {
             const csvText = await response.text();
             if (csvText && csvText.trim().length > 0) {
@@ -200,25 +200,42 @@ export default function App() {
       let combinedData: RankingData | null = null;
       
       for (let i = 0; i < files.length; i++) {
-        const newData = await parseRankingFile(files[i]);
-        if (!combinedData) {
-          combinedData = newData;
-        } else {
-          combinedData = mergeRankingData(combinedData, newData);
+        try {
+          const newData = await parseRankingFile(files[i]);
+          if (!combinedData) {
+            combinedData = newData;
+          } else {
+            combinedData = mergeRankingData(combinedData, newData);
+          }
+        } catch (fileErr) {
+          console.error(`Error procesando archivo ${files[i].name}:`, fileErr);
         }
       }
 
-      if (combinedData) {
+      if (combinedData && combinedData.sections.length > 0) {
         setRankingData(combinedData);
-        // Always set the first event of the new data as selected
-        if (combinedData.allEvents.length > 0) {
-          setSelectedEvent(combinedData.allEvents[0]);
-        }
         
-        // Reset selected teams to defaults for the current gender
-        const mainTeam = rankingGender === Gender.MALE ? "RCCPO" : "CAFPO";
-        const newDefaults = rankingGender === Gender.MALE ? defaultClubsMale : defaultClubsFemale;
-        const availableDefaults = newDefaults.filter(club => 
+        // Detect predominant gender
+        let maleCount = 0;
+        let femaleCount = 0;
+        combinedData.sections.forEach(s => {
+          const g = getGenderFromEventName(s.eventName);
+          if (g === Gender.MALE) maleCount++;
+          else if (g === Gender.FEMALE) femaleCount++;
+        });
+        
+        const detectedGender = femaleCount > maleCount ? Gender.FEMALE : Gender.MALE;
+        const mainTeam = detectedGender === Gender.MALE ? "RCCPO" : "CAFPO";
+        
+        setRankingGender(detectedGender);
+        setEstadilloConfig(prev => ({ ...prev, gender: detectedGender, mainTeam }));
+        setRankingMainTeam(mainTeam);
+
+        // Always set ALL_EVENTS by default to show everything for the detected gender
+        setSelectedEvent("ALL_EVENTS");
+        
+        const defaultClubs = detectedGender === Gender.MALE ? INITIAL_DEFAULT_CLUBS_MALE : INITIAL_DEFAULT_CLUBS_FEMALE;
+        const availableDefaults = defaultClubs.filter(club => 
           combinedData!.allTeams.some(t => t.toUpperCase() === club.toUpperCase())
         );
         setSelectedTeams(availableDefaults);
@@ -404,55 +421,61 @@ export default function App() {
       className="max-w-2xl mx-auto"
     >
       <div className="bg-white border-2 border-dashed border-[#D1D5DB] rounded-2xl p-12 text-center">
-        <div className="bg-[#F3F4F6] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-          <FileSpreadsheet className="w-8 h-8 text-[#4B5563]" />
-        </div>
-        <h2 className="text-2xl font-bold mb-2">Por favor, cargue el ranking</h2>
-        <p className="text-[#6B7280] mb-8">
-          No se han encontrado datos iniciales. Sube un archivo CSV o escanea la carpeta pública para empezar a filtrar.
-        </p>
-        
-        <input 
-          type="file" 
-          ref={fileInputRef}
-          onChange={handleFileUpload}
-          accept=".csv,.xls,.xlsx"
-          multiple
-          className="hidden"
-        />
-        
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading}
-            className="bg-[#141414] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#2D2D2D] transition-all flex items-center gap-2 disabled:opacity-50"
-          >
-            {isLoading ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-            ) : (
-              <FileSpreadsheet className="w-5 h-5" />
-            )}
-            {isLoading ? "Procesando..." : "Seleccionar Archivo(s)"}
-          </button>
-
-          <button 
-            onClick={refreshPublicData}
-            disabled={isLoading}
-            className="bg-white text-[#141414] border border-[#E5E7EB] px-8 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-all flex items-center gap-2 disabled:opacity-50"
-          >
-            <RefreshCcw className={cn("w-5 h-5", isLoading && "animate-spin")} />
-            Escanear Carpeta Pública
-          </button>
-        </div>
-        <p className="mt-4 text-[10px] text-[#9CA3AF] uppercase tracking-widest font-bold">
-          Puedes seleccionar varios archivos a la vez
-        </p>
-
-        {error && (
-          <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-700 text-sm">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            {error}
+        {isLoading ? (
+          <div className="py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#141414] border-t-transparent mx-auto mb-6" />
+            <h2 className="text-2xl font-bold mb-2">Cargando datos...</h2>
+            <p className="text-[#6B7280]">Estamos procesando los archivos del ranking.</p>
           </div>
+        ) : (
+          <>
+            <div className="bg-[#F3F4F6] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FileSpreadsheet className="w-8 h-8 text-[#4B5563]" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Por favor, cargue el ranking</h2>
+            <p className="text-[#6B7280] mb-8">
+              No se han encontrado datos iniciales. Sube un archivo CSV o escanea la carpeta pública para empezar a filtrar.
+            </p>
+            
+            <input 
+              type="file" 
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept=".csv,.xls,.xlsx"
+              multiple
+              className="hidden"
+            />
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                className="bg-[#141414] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#2D2D2D] transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                <FileSpreadsheet className="w-5 h-5" />
+                Seleccionar Archivo(s)
+              </button>
+
+              <button 
+                onClick={refreshPublicData}
+                disabled={isLoading}
+                className="bg-white text-[#141414] border border-[#E5E7EB] px-8 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                <RefreshCcw className={cn("w-5 h-5", isLoading && "animate-spin")} />
+                Escanear Carpeta Pública
+              </button>
+            </div>
+            <p className="mt-4 text-[10px] text-[#9CA3AF] uppercase tracking-widest font-bold">
+              Puedes seleccionar varios archivos a la vez
+            </p>
+
+            {error && (
+              <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-700 text-sm">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                {error}
+              </div>
+            )}
+          </>
         )}
       </div>
     </motion.div>
@@ -764,9 +787,10 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         {view === "RANKING" && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className={cn("grid gap-8", rankingData ? "grid-cols-1 lg:grid-cols-4" : "grid-cols-1")}>
             {/* Sidebar Filters */}
-            <aside className="lg:col-span-1 space-y-6">
+            {rankingData && (
+              <aside className="lg:col-span-1 space-y-6">
               <div className="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-sm">
                 <div className="flex items-center gap-2 mb-4 text-[#111827] font-semibold">
                   <Filter className="w-4 h-4" />
@@ -985,9 +1009,10 @@ export default function App() {
                 </div>
               </div>
             </aside>
+            )}
 
             {/* Main Content */}
-            <div className="lg:col-span-3 space-y-6">
+            <div className={cn("space-y-6", rankingData ? "lg:col-span-3" : "w-full")}>
               {!rankingData ? renderNoDataMessage() : (
                 <>
                   {/* Stats Bar */}
@@ -1122,10 +1147,11 @@ export default function App() {
           </div>
         )}
 
-            {view === "ESTADILLO" && (
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                {/* Estadillo Sidebar */}
-                <aside className="lg:col-span-1 space-y-6">
+        {view === "ESTADILLO" && (
+          <div className={cn("grid gap-8", rankingData ? "grid-cols-1 lg:grid-cols-4" : "grid-cols-1")}>
+            {/* Estadillo Sidebar */}
+            {rankingData && (
+              <aside className="lg:col-span-1 space-y-6">
                   <div className="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-sm">
                     <h3 className="font-bold mb-4 flex items-center gap-2">
                       <Filter className="w-4 h-4" />
@@ -1305,9 +1331,10 @@ export default function App() {
                     </p>
                   </div>
                 </aside>
+            )}
 
-                {/* Estadillo Content */}
-                <div className="lg:col-span-3 space-y-6">
+            {/* Estadillo Content */}
+            <div className={cn("space-y-6", rankingData ? "lg:col-span-3" : "w-full")}>
                   {!rankingData ? renderNoDataMessage() : (
                     <>
                       <div className="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-sm flex items-center justify-between">
