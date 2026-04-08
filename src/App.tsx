@@ -148,7 +148,7 @@ export default function App() {
       if (combinedData && combinedData.sections.length > 0) {
         setRankingData(combinedData);
         
-        // Detect predominant gender
+        // Detect predominant gender only if we don't have data yet
         let maleCount = 0;
         let femaleCount = 0;
         combinedData.sections.forEach(s => {
@@ -161,16 +161,8 @@ export default function App() {
         setRankingGender(detectedGender);
         setEstadilloConfig(prev => ({ ...prev, gender: detectedGender }));
 
-        // Filter events for the detected gender
-        const genderEvents = combinedData.allEvents.filter(e => {
-          const g = getGenderFromEventName(e);
-          return !g || g === detectedGender;
-        });
-
-        if (genderEvents.length > 0) {
-          setSelectedEvent(genderEvents[0]);
-        } else if (combinedData.allEvents.length > 0) {
-          setSelectedEvent(combinedData.allEvents[0]);
+        if (combinedData.allEvents.length > 0) {
+          setSelectedEvent("ALL_EVENTS");
         }
         
         const defaultClubs = detectedGender === Gender.MALE ? INITIAL_DEFAULT_CLUBS_MALE : INITIAL_DEFAULT_CLUBS_FEMALE;
