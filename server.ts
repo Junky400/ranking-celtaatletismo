@@ -20,6 +20,7 @@ async function startServer() {
       }
       const files = fs.readdirSync(publicPath);
       const csvFiles = files.filter(file => file.toLowerCase().endsWith(".csv"));
+      console.log(`Archivos CSV encontrados en public: ${csvFiles.join(", ")}`);
       res.json(csvFiles);
     } catch (error) {
       console.error("Error reading public directory:", error);
