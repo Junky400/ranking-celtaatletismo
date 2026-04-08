@@ -1,5 +1,6 @@
 
 import * as XLSX from "xlsx";
+import Papa from "papaparse";
 import { RankingData, RankingEntry, RankingSection } from "../types";
 
 function isValidTeam(teamName: string): boolean {
@@ -19,86 +20,90 @@ function isValidTeam(teamName: string): boolean {
 export function parseRankingCSV(csvContent: string): RankingData {
   // Normalize non-breaking spaces and other weird whitespace
   const normalizedContent = csvContent.replace(/\xa0/g, " ");
-  const lines = normalizedContent.split(/\r?\n/);
+  
+  // Use PapaParse for robust CSV parsing
+  const results = Papa.parse(normalizedContent, {
+    delimiter: ";",
+    skipEmptyLines: true,
+    transform: (value) => value.trim()
+  });
+
+  const rows = results.data as string[][];
   const sections: RankingSection[] = [];
   const teamsSet = new Set<string>();
   const eventsSet = new Set<string>();
 
   let currentSection: RankingSection | null = null;
-  let isHeaderRow = false;
 
   const isLikelyEventName = (text: string) => {
+    if (!text) return false;
     const upper = text.toUpperCase();
+    
     // Exclude common metadata/footer strings
     if (upper.includes("FEDERACIÓN GALEGA") || 
         upper.includes("RÚA") || 
         upper.includes("CONTIDOS") || 
         upper.includes("PÁXINA") ||
         upper.includes("WWW.ATLETISMO.GAL") ||
-        /^\d{2}\/\d{2}\/\d{4}/.test(text)) { // Exclude dates
+        /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(text)) { // Exclude dates
       return false;
     }
 
     // Include if it has athletics keywords or starts with distance
-    const keywords = ["MASCULINO", "FEMININO", "MASC.", "FEM.", "SALTO", "LANZAMENTO", "RELEVOS", "COMBINADAS", "MARCHA"];
+    const keywords = [
+      "MASCULINO", "FEMININO", "MASC.", "FEM.", 
+      "SALTO", "LANZAMENTO", "RELEVOS", "COMBINADAS", "MARCHA",
+      "LONXITUDE", "TRIPLE", "ALTURA", "PÉRTIGA", "PESO", "DISCO", "XABALINA", "MARTELO",
+      "LONGITUD", "PERTIGA", "JABALINA", "MARTILLO"
+    ];
     if (keywords.some(k => upper.includes(k))) return true;
-    if (/^\d+/.test(text) && (upper.includes(" M") || upper.includes("KM"))) return true;
     
-    // If it's short and uppercase, it might be an event we missed, but let's be conservative
-    return text.length > 3 && text === text.toUpperCase();
+    // Check for patterns like "60M", "100M", "1.000M", "5KM"
+    if (/^\d+/.test(text) && (upper.includes("M") || upper.includes("KM"))) return true;
+    
+    // If it's short and uppercase, it might be an event
+    return text.length >= 2 && text === text.toUpperCase() && /[A-Z]/.test(text);
   };
 
-  for (let line of lines) {
-    line = line.trim();
-    if (!line) continue;
-
-    const parts = line.split(";").map(p => p.trim());
+  for (const row of rows) {
+    if (row.length === 0) continue;
 
     // Check if it's an event header (e.g., "50M MASCULINO ;;;;;;;;")
-    if (parts.length > 1 && parts[0] && parts.slice(1).every(p => !p)) {
-      const eventName = parts[0];
-      
-      if (isLikelyEventName(eventName)) {
-        console.log(`Encontrada sección: ${eventName}`);
-        currentSection = { eventName, entries: [] };
-        sections.push(currentSection);
-        eventsSet.add(eventName);
-        isHeaderRow = true;
-        continue;
-      }
-    }
-
-    // Skip the column header row (starts with #)
-    if (parts[0] === "#") {
-      isHeaderRow = false;
+    // Usually one non-empty cell followed by many empty ones
+    const nonEmptyCells = row.filter(cell => cell.length > 0);
+    
+    if (nonEmptyCells.length === 1 && isLikelyEventName(nonEmptyCells[0])) {
+      const eventName = nonEmptyCells[0];
+      console.log(`Encontrada sección: ${eventName}`);
+      currentSection = { eventName, entries: [] };
+      sections.push(currentSection);
+      eventsSet.add(eventName);
       continue;
     }
 
-    // If we have a current section and it's not a header row, it's a data row
-    if (currentSection && !isHeaderRow && parts.length >= 7 && /^\d+$/.test(parts[0])) {
-      let teamName = parts[6] || "";
+    // Identify data rows: starts with a number (rank) and has enough columns
+    if (currentSection && row.length >= 7 && /^\d+$/.test(row[0])) {
+      let teamName = row[6] || "";
       if (!isValidTeam(teamName)) {
         teamName = "";
       }
 
       const entry: RankingEntry = {
-        rank: parts[0] || "",
-        mark: parts[1] || "",
-        wind: parts[2] || "",
-        position: parts[3] || "",
-        athlete: parts[4] || "",
-        year: parts[5] || "",
+        rank: row[0] || "",
+        mark: row[1] || "",
+        wind: row[2] || "",
+        position: row[3] || "",
+        athlete: row[4] || "",
+        year: row[5] || "",
         team: teamName,
-        date: parts[7] || "",
-        location: parts[8] || "",
+        date: row[7] || "",
+        location: row[8] || "",
       };
       
       currentSection.entries.push(entry);
       if (teamName) {
         teamsSet.add(teamName);
       }
-    } else if (currentSection && !isHeaderRow && parts.length > 0 && /^\d+$/.test(parts[0])) {
-       console.warn(`Fila de datos ignorada (posible formato incorrecto): ${line}`);
     }
   }
 
@@ -142,6 +147,7 @@ export function mergeRankingData(data1: RankingData, data2: RankingData): Rankin
       const eventMap = mergedSectionsMap.get(section.eventName)!;
       
       for (const entry of section.entries) {
+        if (!entry.athlete) continue;
         const athleteKey = `${entry.athlete.toUpperCase().trim()}-${entry.year}`;
         const existingEntry = eventMap.get(athleteKey);
         
@@ -172,6 +178,12 @@ export function mergeRankingData(data1: RankingData, data2: RankingData): Rankin
     entries.sort((a, b) => {
       const valA = parseMark(a.mark);
       const valB = parseMark(b.mark);
+      
+      // Handle NaN values (put them at the end)
+      if (isNaN(valA) && isNaN(valB)) return 0;
+      if (isNaN(valA)) return 1;
+      if (isNaN(valB)) return -1;
+
       return isDistance ? valB - valA : valA - valB;
     });
 

@@ -30,7 +30,7 @@ function cn(...inputs: ClassValue[]) {
 
 const DEFAULT_CLUBS_MALE_KEY = "ranking_galego_default_clubs_male";
 const DEFAULT_CLUBS_FEMALE_KEY = "ranking_galego_default_clubs_female";
-const INITIAL_DEFAULT_CLUBS_MALE = ["RCVPO", "STOC", "MAZPO", "BAIPO", "VCGPO", "PORPO", "SAMPO"];
+const INITIAL_DEFAULT_CLUBS_MALE = ["RCCPO", "STOC", "MAZPO", "BAIPO", "VCGPO", "PORPO", "SAMPO"];
 const INITIAL_DEFAULT_CLUBS_FEMALE = ["CAFPO", "PUROR", "PORPO", "VCGPO", "NAOC", "SAMPO"];
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -60,6 +60,8 @@ export default function App() {
   const [rankingData, setRankingData] = useState<RankingData | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<string>("");
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+  const [filialTeams, setFilialTeams] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("TODAS");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [teamSearch, setTeamSearch] = useState("");
@@ -68,7 +70,7 @@ export default function App() {
   const [tempClubsFemale, setTempClubsFemale] = useState("");
   const [topLimit, setTopLimit] = useState<number | null>(null);
   const [rankingGender, setRankingGender] = useState<Gender>(Gender.MALE);
-  const [rankingMainTeam, setRankingMainTeam] = useState("RCVPO");
+  const [rankingMainTeam, setRankingMainTeam] = useState("RCCPO");
   const [rankingU23OnlyForFilials, setRankingU23OnlyForFilials] = useState(false);
 
   const [defaultClubsMale, setDefaultClubsMale] = useState<string[]>(() => {
@@ -88,7 +90,7 @@ export default function App() {
     athletesPerEvent: 1,
     maxEventsPerAthlete: 1,
     maxAssociatedAthletes: 5,
-    mainTeam: "RCVPO",
+    mainTeam: "RCCPO",
     gender: Gender.MALE,
     u23OnlyForFilials: false
   });
@@ -158,8 +160,11 @@ export default function App() {
         });
         
         const detectedGender = femaleCount > maleCount ? Gender.FEMALE : Gender.MALE;
+        const mainTeam = detectedGender === Gender.MALE ? "RCCPO" : "CAFPO";
+        
         setRankingGender(detectedGender);
-        setEstadilloConfig(prev => ({ ...prev, gender: detectedGender }));
+        setEstadilloConfig(prev => ({ ...prev, gender: detectedGender, mainTeam }));
+        setRankingMainTeam(mainTeam);
 
         if (combinedData.allEvents.length > 0) {
           setSelectedEvent("ALL_EVENTS");
@@ -170,6 +175,7 @@ export default function App() {
           combinedData!.allTeams.some(t => t.toUpperCase() === club.toUpperCase())
         );
         setSelectedTeams(availableDefaults);
+        setFilialTeams(availableDefaults.filter(t => t.toUpperCase() !== mainTeam.toUpperCase()));
       }
     } catch (err) {
       console.error("Error crítico cargando datos iniciales:", err);
@@ -210,11 +216,13 @@ export default function App() {
         }
         
         // Reset selected teams to defaults for the current gender
+        const mainTeam = rankingGender === Gender.MALE ? "RCCPO" : "CAFPO";
         const newDefaults = rankingGender === Gender.MALE ? defaultClubsMale : defaultClubsFemale;
         const availableDefaults = newDefaults.filter(club => 
           combinedData!.allTeams.some(t => t.toUpperCase() === club.toUpperCase())
         );
         setSelectedTeams(availableDefaults);
+        setFilialTeams(availableDefaults.filter(t => t.toUpperCase() !== mainTeam.toUpperCase()));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al procesar el archivo");
@@ -224,7 +232,7 @@ export default function App() {
   };
 
   const handleEstadilloGenderChange = (gender: Gender) => {
-    const mainTeam = gender === Gender.MALE ? "RCVPO" : "CAFPO";
+    const mainTeam = gender === Gender.MALE ? "RCCPO" : "CAFPO";
     setEstadilloConfig(prev => ({ ...prev, gender, mainTeam }));
     
     // Update selected teams to match the gender defaults
@@ -234,6 +242,7 @@ export default function App() {
         rankingData.allTeams.some(t => t.toUpperCase() === club.toUpperCase())
       );
       setSelectedTeams(availableDefaults);
+      setFilialTeams(availableDefaults.filter(t => t.toUpperCase() !== mainTeam.toUpperCase()));
     }
   };
 
@@ -256,10 +265,12 @@ export default function App() {
       setRankingData(currentData);
       
       // Apply default clubs for newly discovered teams
+      const mainTeam = rankingGender === Gender.MALE ? "RCCPO" : "CAFPO";
       const availableDefaults = currentDefaultClubs.filter(club => 
         currentData.allTeams.some(t => t.toUpperCase() === club.toUpperCase())
       );
       setSelectedTeams(prev => [...new Set([...prev, ...availableDefaults])]);
+      setFilialTeams(prev => [...new Set([...prev, ...availableDefaults.filter(t => t.toUpperCase() !== mainTeam.toUpperCase())])]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al añadir el ranking");
     } finally {
@@ -277,9 +288,35 @@ export default function App() {
     });
 
     const processEntries = (entries: RankingEntry[]) => {
-      let result = selectedTeams.length > 0 
-        ? entries.filter(entry => selectedTeams.includes(entry.team))
-        : entries;
+      let result = entries;
+
+      // Filter by category
+      if (selectedCategory !== "TODAS") {
+        const currentYear = new Date().getFullYear();
+        result = result.filter(entry => {
+          const year = parseInt(entry.year);
+          if (isNaN(year)) return false;
+
+          switch (selectedCategory) {
+            case "SUB-8": return year >= currentYear - 7;
+            case "SUB-10": return year === currentYear - 8 || year === currentYear - 9;
+            case "SUB-12": return year === currentYear - 10 || year === currentYear - 11;
+            case "SUB-14": return year === currentYear - 12 || year === currentYear - 13;
+            case "SUB-16": return year === currentYear - 14 || year === currentYear - 15;
+            case "SUB-18": return year === currentYear - 16 || year === currentYear - 17;
+            case "SUB-20": return year === currentYear - 18 || year === currentYear - 19;
+            case "SUB-23": return year === currentYear - 20 || year === currentYear - 21 || year === currentYear - 22;
+            case "SENIOR": return year <= currentYear - 23 && year > currentYear - 35;
+            case "MASTER": return year <= currentYear - 35;
+            default: return true;
+          }
+        });
+      }
+
+      // Filter by team
+      if (selectedTeams.length > 0) {
+        result = result.filter(entry => selectedTeams.includes(entry.team));
+      }
 
       if (rankingU23OnlyForFilials) {
         result = result.filter(entry => {
@@ -410,12 +447,11 @@ export default function App() {
           const mainTeamUpper = estadilloConfig.mainTeam.toUpperCase().trim();
           
           const isMainTeam = entryTeamUpper === mainTeamUpper;
-          const isInSelected = selectedTeams.some(t => t.toUpperCase().trim() === entryTeamUpper);
+          const isFilial = filialTeams.some(t => t.toUpperCase().trim() === entryTeamUpper);
           
           // An athlete is valid if they are from the main team 
-          // OR if they are from one of the selected teams.
-          // If no teams are selected, we ONLY consider the main team (no filiales).
-          let isValid = selectedTeams.length > 0 ? (isMainTeam || isInSelected) : isMainTeam;
+          // OR if they are from one of the filial teams.
+          let isValid = isMainTeam || isFilial;
           
           // New Filter: If it's a filial (not main team) and the filter is active,
           // only allow U23 and younger (born in U23_BIRTH_YEAR or later)
@@ -436,7 +472,7 @@ export default function App() {
               mark: entry.mark,
               points,
               team: entry.team,
-              isAssociated: !isMainTeam
+              isAssociated: !isMainTeam && isFilial
             });
           }
         });
@@ -631,7 +667,7 @@ export default function App() {
                     className="w-full h-32 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl p-4 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#141414]/10"
                     value={tempClubsMale}
                     onChange={(e) => setTempClubsMale(e.target.value)}
-                    placeholder="RCVPO&#10;STOC&#10;..."
+                    placeholder="RCCPO&#10;STOC&#10;..."
                   />
                 </div>
                 
@@ -753,14 +789,17 @@ export default function App() {
                           onClick={() => {
                             setRankingGender(option.value);
                             setSelectedEvent("ALL_EVENTS");
-                            setRankingMainTeam(option.value === Gender.MALE ? "RCVPO" : "CAFPO");
+                            const mainTeam = option.value === Gender.MALE ? "RCCPO" : "CAFPO";
+                            setRankingMainTeam(mainTeam);
+                            setEstadilloConfig(prev => ({ ...prev, gender: option.value, mainTeam }));
                             
                             // Auto-select defaults for the new gender
                             const newDefaults = option.value === Gender.MALE ? defaultClubsMale : defaultClubsFemale;
-                            const availableDefaults = newDefaults.filter(club => 
+                            const availableDefaults = rankingData ? newDefaults.filter(club => 
                               rankingData.allTeams.some(t => t.toUpperCase() === club.toUpperCase())
-                            );
+                            ) : [];
                             setSelectedTeams(availableDefaults);
+                            setFilialTeams(availableDefaults.filter(t => t.toUpperCase() !== mainTeam.toUpperCase()));
                           }}
                           className={cn(
                             "flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
@@ -793,6 +832,30 @@ export default function App() {
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF] pointer-events-none" />
                     </div>
+                  </div>
+
+                  {/* Category Filter */}
+                  <div>
+                    <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-wider mb-2">
+                      Categoría
+                    </label>
+                    <select 
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="w-full bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#141414]/10 transition-all"
+                    >
+                      <option value="TODAS">Todas las categorías</option>
+                      <option value="SUB-8">SUB-8 (U8)</option>
+                      <option value="SUB-10">SUB-10 (U10)</option>
+                      <option value="SUB-12">SUB-12 (U12)</option>
+                      <option value="SUB-14">SUB-14 (U14)</option>
+                      <option value="SUB-16">SUB-16 (U16)</option>
+                      <option value="SUB-18">SUB-18 (U18)</option>
+                      <option value="SUB-20">SUB-20 (U20)</option>
+                      <option value="SUB-23">SUB-23 (U23)</option>
+                      <option value="SENIOR">SENIOR</option>
+                      <option value="MASTER">MÁSTER (35+)</option>
+                    </select>
                   </div>
 
                   {/* Top Limit Filter */}
@@ -835,7 +898,7 @@ export default function App() {
                           type="text"
                           value={rankingMainTeam}
                           onChange={(e) => setRankingMainTeam(e.target.value.toUpperCase())}
-                          placeholder="Ej: RCVPO"
+                          placeholder="Ej: RCCPO"
                           className="w-full bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#141414]/10 transition-all"
                         />
                       </div>
@@ -1134,12 +1197,12 @@ export default function App() {
                       <div>
                         <label className="block text-xs font-bold text-[#6B7280] uppercase mb-2">Clubes Filiales (uno por línea)</label>
                         <textarea 
-                          value={selectedTeams.join("\n")}
+                          value={filialTeams.join("\n")}
                           onChange={(e) => {
                             const clubs = e.target.value.split("\n").map(s => s.trim().toUpperCase()).filter(Boolean);
-                            setSelectedTeams(clubs);
+                            setFilialTeams(clubs);
                           }}
-                          placeholder="Ej: RCVPO&#10;STOC"
+                          placeholder="Ej: RCCPO&#10;STOC"
                           className="w-full h-24 bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl px-4 py-2 text-sm font-mono focus:ring-2 focus:ring-black/5"
                         />
                       </div>
