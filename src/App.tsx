@@ -397,6 +397,67 @@ export default function App() {
     }
   };
 
+  const renderNoDataMessage = () => (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-2xl mx-auto"
+    >
+      <div className="bg-white border-2 border-dashed border-[#D1D5DB] rounded-2xl p-12 text-center">
+        <div className="bg-[#F3F4F6] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+          <FileSpreadsheet className="w-8 h-8 text-[#4B5563]" />
+        </div>
+        <h2 className="text-2xl font-bold mb-2">Por favor, cargue el ranking</h2>
+        <p className="text-[#6B7280] mb-8">
+          No se han encontrado datos iniciales. Sube un archivo CSV o escanea la carpeta pública para empezar a filtrar.
+        </p>
+        
+        <input 
+          type="file" 
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept=".csv,.xls,.xlsx"
+          multiple
+          className="hidden"
+        />
+        
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+            className="bg-[#141414] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#2D2D2D] transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            {isLoading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+            ) : (
+              <FileSpreadsheet className="w-5 h-5" />
+            )}
+            {isLoading ? "Procesando..." : "Seleccionar Archivo(s)"}
+          </button>
+
+          <button 
+            onClick={refreshPublicData}
+            disabled={isLoading}
+            className="bg-white text-[#141414] border border-[#E5E7EB] px-8 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            <RefreshCcw className={cn("w-5 h-5", isLoading && "animate-spin")} />
+            Escanear Carpeta Pública
+          </button>
+        </div>
+        <p className="mt-4 text-[10px] text-[#9CA3AF] uppercase tracking-widest font-bold">
+          Puedes seleccionar varios archivos a la vez
+        </p>
+
+        {error && (
+          <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-700 text-sm">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            {error}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+
   const handleExportExcel = () => {
     if (view === "RANKING") {
       if (filteredSections.length === 0) return;
@@ -702,69 +763,8 @@ export default function App() {
       </AnimatePresence>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {!rankingData ? (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-2xl mx-auto"
-          >
-            <div className="bg-white border-2 border-dashed border-[#D1D5DB] rounded-2xl p-12 text-center">
-              <div className="bg-[#F3F4F6] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Upload className="w-8 h-8 text-[#4B5563]" />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">Cargar Ranking</h2>
-              <p className="text-[#6B7280] mb-8">
-                Sube un archivo CSV o XLS con el ranking de atletismo para empezar a filtrar.
-              </p>
-              
-              <input 
-                type="file" 
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept=".csv,.xls,.xlsx"
-                multiple
-                className="hidden"
-              />
-              
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isLoading}
-                  className="bg-[#141414] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#2D2D2D] transition-all flex items-center gap-2 disabled:opacity-50"
-                >
-                  {isLoading ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                  ) : (
-                    <FileSpreadsheet className="w-5 h-5" />
-                  )}
-                  {isLoading ? "Procesando..." : "Seleccionar Archivo(s)"}
-                </button>
-
-                <button 
-                  onClick={refreshPublicData}
-                  disabled={isLoading}
-                  className="bg-white text-[#141414] border border-[#E5E7EB] px-8 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-all flex items-center gap-2 disabled:opacity-50"
-                >
-                  <RefreshCcw className={cn("w-5 h-5", isLoading && "animate-spin")} />
-                  Escanear Carpeta Pública
-                </button>
-              </div>
-              <p className="mt-4 text-[10px] text-[#9CA3AF] uppercase tracking-widest font-bold">
-                Puedes seleccionar varios archivos a la vez
-              </p>
-
-              {error && (
-                <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-700 text-sm">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                  {error}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        ) : (
-          <>
-            {view === "RANKING" && (
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {view === "RANKING" && (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Sidebar Filters */}
             <aside className="lg:col-span-1 space-y-6">
               <div className="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-sm">
@@ -988,7 +988,9 @@ export default function App() {
 
             {/* Main Content */}
             <div className="lg:col-span-3 space-y-6">
-              {/* Stats Bar */}
+              {!rankingData ? renderNoDataMessage() : (
+                <>
+                  {/* Stats Bar */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-white p-4 rounded-2xl border border-[#E5E7EB] shadow-sm flex items-center gap-4">
                   <div className="bg-blue-50 p-2.5 rounded-xl">
@@ -1103,8 +1105,9 @@ export default function App() {
                     </div>
                   </div>
                 ))}
+              </div>
 
-                {filteredSections.length === 0 && (
+              {filteredSections.length === 0 && (
                   <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm py-20 text-center">
                     <div className="bg-[#F3F4F6] w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
                       <Search className="w-6 h-6 text-[#9CA3AF]" />
@@ -1113,7 +1116,8 @@ export default function App() {
                     <p className="text-[#6B7280]">Prueba a cambiar los filtros o selecciona otros clubes.</p>
                   </div>
                 )}
-              </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -1304,7 +1308,9 @@ export default function App() {
 
                 {/* Estadillo Content */}
                 <div className="lg:col-span-3 space-y-6">
-                  <div className="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-sm flex items-center justify-between">
+                  {!rankingData ? renderNoDataMessage() : (
+                    <>
+                      <div className="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-sm flex items-center justify-between">
                     <div>
                       <p className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Puntuación Total</p>
                       <p className="text-4xl font-black text-[#141414]">
@@ -1370,10 +1376,10 @@ export default function App() {
                       <p className="text-[#6B7280]">Configura los parámetros y haz clic en "Generar Estadillo".</p>
                     </div>
                   )}
-                </div>
-              </div>
-            )}
-          </>
+                </>
+              )}
+            </div>
+          </div>
         )}
       </main>
     </div>
