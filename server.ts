@@ -13,14 +13,15 @@ async function startServer() {
 
   // API route to list CSV files in the public folder
   app.get("/api/csv-files", (req, res) => {
-    const publicPath = path.resolve(process.cwd(), "public");
+    const publicPath = path.join(process.cwd(), "public");
     try {
       if (!fs.existsSync(publicPath)) {
+        console.log("Carpeta public no existe en:", publicPath);
         return res.json([]);
       }
       const files = fs.readdirSync(publicPath);
       const csvFiles = files.filter(file => file.toLowerCase().endsWith(".csv"));
-      console.log(`Archivos CSV encontrados en public: ${csvFiles.join(", ")}`);
+      console.log(`Archivos CSV encontrados en ${publicPath}: ${csvFiles.join(", ")}`);
       res.json(csvFiles);
     } catch (error) {
       console.error("Error reading public directory:", error);
@@ -29,7 +30,7 @@ async function startServer() {
   });
 
   // Explicitly serve public folder
-  app.use(express.static(path.resolve(process.cwd(), "public")));
+  app.use(express.static(path.join(process.cwd(), "public")));
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

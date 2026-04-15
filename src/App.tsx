@@ -188,7 +188,7 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       // Small delay to ensure server is ready
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1500));
       refreshPublicData();
     };
     init();
