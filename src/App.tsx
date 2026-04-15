@@ -95,6 +95,7 @@ export default function App() {
     u23OnlyForFilials: false
   });
   const [excludedEvents, setExcludedEvents] = useState<string[]>(["4X100M", "4X400M"]);
+  const [discardedAthletes, setDiscardedAthletes] = useState<string[]>([]);
   const [optimizedEstadillo, setOptimizedEstadillo] = useState<any[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -261,6 +262,7 @@ export default function App() {
       setSelectedTeams(availableDefaults);
       setFilialTeams(availableDefaults.filter(t => t.toUpperCase() !== mainTeam.toUpperCase()));
     }
+    setDiscardedAthletes([]);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -547,6 +549,9 @@ export default function App() {
           
           if (!isValid) return;
           
+          // Filter out discarded athletes
+          if (discardedAthletes.includes(entry.athlete)) return;
+          
           const points = calculateIAAFPoints(section.eventName, entry.mark, estadilloConfig.gender);
           if (points > 0) {
             candidates.push({
@@ -592,6 +597,22 @@ export default function App() {
 
     setOptimizedEstadillo(selected.sort((a, b) => a.event.localeCompare(b.event)));
   };
+
+  const toggleDiscardAthlete = (athleteName: string) => {
+    setDiscardedAthletes(prev => {
+      if (prev.includes(athleteName)) {
+        return prev.filter(a => a !== athleteName);
+      } else {
+        return [...prev, athleteName];
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (optimizedEstadillo.length > 0) {
+      generateEstadillo();
+    }
+  }, [discardedAthletes]);
 
   const resetData = () => {
     setRankingData(null);
@@ -1317,9 +1338,14 @@ export default function App() {
 
                       <button 
                         onClick={generateEstadillo}
-                        className="w-full bg-[#141414] text-white py-3 rounded-xl font-bold hover:bg-[#2D2D2D] transition-all shadow-lg shadow-black/5"
+                        className="w-full bg-[#141414] text-white py-3 rounded-xl font-bold hover:bg-[#2D2D2D] transition-all shadow-lg shadow-black/5 flex items-center justify-center gap-2"
                       >
                         Generar Estadillo
+                        {discardedAthletes.length > 0 && (
+                          <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                            -{discardedAthletes.length}
+                          </span>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1330,6 +1356,36 @@ export default function App() {
                       El sistema seleccionará automáticamente a los atletas que sumen más puntos IAAF respetando los límites de filiales y pruebas por atleta.
                     </p>
                   </div>
+
+                  {discardedAthletes.length > 0 && (
+                    <div className="bg-white p-6 rounded-2xl border border-[#E5E7EB] shadow-sm">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-sm flex items-center gap-2 text-red-600">
+                          <Users className="w-4 h-4" />
+                          Atletas Descartados
+                        </h3>
+                        <button 
+                          onClick={() => setDiscardedAthletes([])}
+                          className="text-[10px] font-bold text-gray-400 hover:text-red-600 uppercase"
+                        >
+                          Limpiar
+                        </button>
+                      </div>
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                        {discardedAthletes.map(athlete => (
+                          <div key={athlete} className="flex items-center justify-between bg-red-50 px-3 py-2 rounded-lg group">
+                            <span className="text-xs font-medium text-red-700 truncate">{athlete}</span>
+                            <button 
+                              onClick={() => toggleDiscardAthlete(athlete)}
+                              className="text-red-400 hover:text-red-600 transition-colors"
+                            >
+                              <RefreshCcw className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </aside>
             )}
 
@@ -1363,6 +1419,7 @@ export default function App() {
                             <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase">Marca</th>
                             <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase text-right">Puntos IAAF</th>
                             <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase">Equipo</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase text-center">Acciones</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#F3F4F6]">
@@ -1388,6 +1445,15 @@ export default function App() {
                                 )}>
                                   {item.team}
                                 </span>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <button 
+                                  onClick={() => toggleDiscardAthlete(item.athlete)}
+                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                  title="Descartar atleta"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
                               </td>
                             </tr>
                           ))}

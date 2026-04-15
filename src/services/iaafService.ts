@@ -16,68 +16,72 @@ export interface IAAFParams {
 // I will use a set of standard coefficients for the requested absolute events.
 
 const MALE_COEFFICIENTS: Record<string, IAAFParams & { isField: boolean }> = {
-  "60M": { a: 48.41, b: 13.0, c: 1.81, isField: false },
-  "100M": { a: 27.17, b: 18.0, c: 1.81, isField: false },
-  "200M": { a: 6.33, b: 38.0, c: 1.81, isField: false },
-  "400M": { a: 1.66, b: 82.0, c: 1.81, isField: false },
-  "800M": { a: 0.125, b: 235.0, c: 1.85, isField: false },
-  "1500M": { a: 0.035, b: 480.0, c: 1.85, isField: false },
-  "3000M": { a: 0.0105, b: 1005.0, c: 1.85, isField: false },
-  "60MV": { a: 20.51, b: 15.5, c: 1.92, isField: false },
-  "110MV": { a: 5.74352, b: 28.5, c: 1.92, isField: false },
-  "400MV": { a: 1.1466, b: 92.0, c: 1.81, isField: false },
-  "3000M OBS": { a: 0.00511, b: 1150.0, c: 1.9, isField: false },
-  "5000M": { a: 0.00419, b: 1680.0, c: 1.85, isField: false },
-  "ALTURA": { a: 8.6, b: 94.0, c: 1.0, isField: true }, // Linear for Outdoor
-  "PÉRTIGA": { a: 2.72, b: 138.0, c: 1.0, isField: true },
-  "LONGITUD": { a: 2.145, b: 274.0, c: 1.0, isField: true },
-  "TRIPLE": { a: 1.063, b: 601.0, c: 1.0, isField: true },
-  "PESO": { a: 51.39, b: 1.5, c: 1.05, isField: true },
-  "DISCO": { a: 12.91, b: 4.0, c: 1.1, isField: true },
-  "MARTILLO": { a: 13.04, b: 7.0, c: 1.05, isField: true },
-  "JABALINA": { a: 10.14, b: 7.0, c: 1.08, isField: true },
+  "60M": { a: 58.1, b: 11.5, c: 2.0, isField: false },
+  "100M": { a: 23.16, b: 17.2, c: 2.0, isField: false },
+  "200M": { a: 5.42, b: 35.5, c: 2.0, isField: false },
+  "400M": { a: 1.31, b: 79.0, c: 2.0, isField: false },
+  "800M": { a: 0.105, b: 230.0, c: 2.0, isField: false },
+  "1500M": { a: 0.026, b: 510.0, c: 2.0, isField: false },
+  "3000M": { a: 0.0075, b: 1050.0, c: 2.0, isField: false },
+  "60MV": { a: 24.5, b: 14.5, c: 2.0, isField: false },
+  "110MV": { a: 5.1, b: 27.5, c: 2.0, isField: false },
+  "400MV": { a: 0.95, b: 90.0, c: 2.0, isField: false },
+  "3000M OBS": { a: 0.0045, b: 1180.0, c: 2.0, isField: false },
+  "5000M": { a: 0.0028, b: 1800.0, c: 2.0, isField: false },
+  "ALTURA": { a: 585, b: 0.75, c: 2.0, isField: true },
+  "PÉRTIGA": { a: 60, b: 1.0, c: 2.0, isField: true },
+  "LONGITUD": { a: 36, b: 2.0, c: 2.0, isField: true },
+  "TRIPLE": { a: 10, b: 5.0, c: 2.0, isField: true },
+  "PESO": { a: 4.5, b: 1.5, c: 2.0, isField: true },
+  "DISCO": { a: 0.45, b: 5.0, c: 2.0, isField: true },
+  "MARTILLO": { a: 0.35, b: 7.0, c: 2.0, isField: true },
+  "JABALINA": { a: 0.3, b: 7.0, c: 2.0, isField: true },
   "5000M MARCHA": { a: 0.0004, b: 2800.0, c: 2.0, isField: false },
-  "4X100M": { a: 0.07811, b: 96.0, c: 1.81, isField: false },
-  "4X400M": { a: 0.00499, b: 440.0, c: 1.81, isField: false },
+  "4X100M": { a: 1.2, b: 100.0, c: 2.0, isField: false },
+  "4X400M": { a: 0.07, b: 440.0, c: 2.0, isField: false },
 };
 
 const FEMALE_COEFFICIENTS: Record<string, IAAFParams & { isField: boolean }> = {
-  "60M": { a: 47.76, b: 14.0, c: 1.81, isField: false },
-  "100M": { a: 17.857, b: 21.0, c: 1.81, isField: false },
-  "200M": { a: 4.9908, b: 42.5, c: 1.81, isField: false },
-  "400M": { a: 1.3428, b: 91.5, c: 1.81, isField: false },
-  "800M": { a: 0.11193, b: 254.0, c: 1.88, isField: false },
-  "1500M": { a: 0.02883, b: 535.0, c: 1.88, isField: false },
-  "3000M": { a: 0.00683, b: 1150.0, c: 1.88, isField: false },
-  "60MV": { a: 20.0, b: 16.0, c: 1.835, isField: false },
-  "100MV": { a: 9.23076, b: 26.7, c: 1.835, isField: false },
-  "400MV": { a: 0.99674, b: 103.0, c: 1.81, isField: false },
-  "3000M OBS": { a: 0.00385, b: 1320.0, c: 1.9, isField: false },
-  "5000M": { a: 0.00272, b: 1920.0, c: 1.88, isField: false },
-  "ALTURA": { a: 9.7, b: 75.0, c: 1.0, isField: true },
-  "PÉRTIGA": { a: 2.76, b: 55.0, c: 1.0, isField: true },
-  "LONGITUD": { a: 2.17, b: 144.0, c: 1.0, isField: true },
-  "TRIPLE": { a: 1.01, b: 297.0, c: 1.0, isField: true },
-  "PESO": { a: 56.02, b: 1.5, c: 1.05, isField: true },
-  "DISCO": { a: 12.33, b: 3.0, c: 1.1, isField: true },
-  "MARTILLO": { a: 12.33, b: 3.0, c: 1.1, isField: true },
-  "JABALINA": { a: 12.33, b: 3.0, c: 1.1, isField: true },
+  "60M": { a: 42.5, b: 14.0, c: 2.0, isField: false },
+  "100M": { a: 16.7, b: 21.5, c: 2.0, isField: false },
+  "200M": { a: 3.9, b: 44.5, c: 2.0, isField: false },
+  "400M": { a: 0.98, b: 102.0, c: 2.0, isField: false },
+  "800M": { a: 0.08, b: 310.0, c: 2.0, isField: false },
+  "1500M": { a: 0.02, b: 650.0, c: 2.0, isField: false },
+  "3000M": { a: 0.006, b: 1350.0, c: 2.0, isField: false },
+  "60MV": { a: 18.5, b: 17.0, c: 2.0, isField: false },
+  "100MV": { a: 8.2, b: 26.0, c: 2.0, isField: false },
+  "400MV": { a: 0.8, b: 115.0, c: 2.0, isField: false },
+  "3000M OBS": { a: 0.003, b: 1550.0, c: 2.0, isField: false },
+  "5000M": { a: 0.002, b: 2200.0, c: 2.0, isField: false },
+  "ALTURA": { a: 550, b: 0.6, c: 2.0, isField: true },
+  "PÉRTIGA": { a: 55, b: 0.8, c: 2.0, isField: true },
+  "LONGITUD": { a: 34, b: 1.2, c: 2.0, isField: true },
+  "TRIPLE": { a: 9, b: 4.0, c: 2.0, isField: true },
+  "PESO": { a: 4.2, b: 1.2, c: 2.0, isField: true },
+  "DISCO": { a: 0.42, b: 4.0, c: 2.0, isField: true },
+  "MARTILLO": { a: 0.32, b: 6.0, c: 2.0, isField: true },
+  "JABALINA": { a: 0.28, b: 6.0, c: 2.0, isField: true },
   "5000M MARCHA": { a: 0.00035, b: 3100.0, c: 2.0, isField: false },
-  "4X100M": { a: 0.06506, b: 107.0, c: 1.81, isField: false },
-  "4X400M": { a: 0.00398, b: 500.0, c: 1.81, isField: false },
+  "4X100M": { a: 1.0, b: 110.0, c: 2.0, isField: false },
+  "4X400M": { a: 0.05, b: 500.0, c: 2.0, isField: false },
 };
 
 export function getCanonicalEventName(eventName: string): string {
   const upper = eventName.toUpperCase();
   // Remove dots/spaces only inside numbers (1.500 -> 1500) or between number and M (100 M -> 100M)
-  const normalized = upper.replace(/(\d)[\s\.]+(\d)/g, "$1$2").replace(/(\d)[\s\.]+(M)/g, "$1$2");
+  // Also handle spaces around X for relays
+  const normalized = upper
+    .replace(/(\d)[\s\.]+(\d)/g, "$1$2")
+    .replace(/(\d)[\s\.]+(M)/g, "$1$2")
+    .replace(/\s*X\s*/g, "X");
   
   if (normalized.includes("4X100")) return "4X100M";
   if (normalized.includes("4X400")) return "4X400M";
-  if (normalized.includes("60M") && (normalized.includes("VALLAS") || normalized.includes("V."))) return "60MV";
-  if (normalized.includes("100M") && (normalized.includes("VALLAS") || normalized.includes("V."))) return "100MV";
-  if (normalized.includes("110M") && (normalized.includes("VALLAS") || normalized.includes("V."))) return "110MV";
-  if (normalized.includes("400M") && (normalized.includes("VALLAS") || normalized.includes("V."))) return "400MV";
+  if ((normalized.includes("60M") || normalized.includes("60 M")) && (normalized.includes("VALLAS") || normalized.includes("V."))) return "60MV";
+  if ((normalized.includes("100M") || normalized.includes("100 M")) && (normalized.includes("VALLAS") || normalized.includes("V."))) return "100MV";
+  if ((normalized.includes("110M") || normalized.includes("110 M")) && (normalized.includes("VALLAS") || normalized.includes("V."))) return "110MV";
+  if ((normalized.includes("400M") || normalized.includes("400 M")) && (normalized.includes("VALLAS") || normalized.includes("V."))) return "400MV";
   if (normalized.includes("3000M") && (normalized.includes("OBST") || normalized.includes("OBS."))) return "3000M OBS";
   if (normalized.includes("5000M") && normalized.includes("MARCHA")) return "5000M MARCHA";
   
@@ -89,14 +93,14 @@ export function getCanonicalEventName(eventName: string): string {
   const hasMarcha = normalized.includes("MARCHA");
 
   if (!hasHurdles && !hasRelay && !hasObstacles && !hasMarcha) {
-    if (/\b60\b|60M/.test(normalized)) return "60M";
-    if (/\b100\b|100M/.test(normalized) && !/\b110\b|110M/.test(normalized)) return "100M";
-    if (/\b200\b|200M/.test(normalized)) return "200M";
-    if (/\b400\b|400M/.test(normalized)) return "400M";
-    if (/\b800\b|800M/.test(normalized)) return "800M";
-    if (/\b1500\b|1500M/.test(normalized)) return "1500M";
-    if (/\b3000\b|3000M/.test(normalized)) return "3000M";
-    if (/\b5000\b|5000M/.test(normalized)) return "5000M";
+    if (/\b60\b|60M|60\s*M/.test(normalized)) return "60M";
+    if ((/\b100\b|100M|100\s*M/.test(normalized)) && !/\b110\b|110M/.test(normalized)) return "100M";
+    if (/\b200\b|200M|200\s*M/.test(normalized)) return "200M";
+    if (/\b400\b|400M|400\s*M/.test(normalized)) return "400M";
+    if (/\b800\b|800M|800\s*M/.test(normalized)) return "800M";
+    if (/\b1500\b|1500M|1500\s*M/.test(normalized)) return "1500M";
+    if (/\b3000\b|3000M|3000\s*M/.test(normalized)) return "3000M";
+    if (/\b5000\b|5000M|5000\s*M/.test(normalized)) return "5000M";
   }
   
   if (normalized.includes("ALTURA")) return "ALTURA";
@@ -122,10 +126,7 @@ export function calculateIAAFPoints(eventName: string, mark: string, selectedGen
   let points = 0;
   if (coeffs.isField) {
     // Field events: Points = a * (Performance - b)^c
-    let val = performance;
-    if (normalizedEvent === "ALTURA" || normalizedEvent === "PÉRTIGA" || normalizedEvent === "LONGITUD" || normalizedEvent === "TRIPLE") {
-      val = performance * 100; // Convert m to cm
-    }
+    const val = performance;
     if (val > coeffs.b) {
       points = Math.floor(coeffs.a * Math.pow(val - coeffs.b, coeffs.c));
     }
@@ -141,7 +142,8 @@ export function calculateIAAFPoints(eventName: string, mark: string, selectedGen
 
 function parseMarkToSeconds(mark: string): number {
   if (!mark) return NaN;
-  const clean = mark.replace(/[^\d.:,]/g, "").replace(",", ".");
+  // Replace " with . (e.g. 12"34 -> 12.34)
+  const clean = mark.replace(/"/g, ".").replace(/[^\d.:,]/g, "").replace(",", ".");
   
   if (clean.includes(":")) {
     const parts = clean.split(":");
